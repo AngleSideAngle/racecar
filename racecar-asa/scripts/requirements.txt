@@ -1,0 +1,9 @@
+numpy == 1.21.1
+matplotlib
+mypy
+nptyping == 1.4.4
+opencv-contrib-python == 4.5.4.58
+jinja2 == 3.0
+ipywidgets == 7.6.5 #(you need: jinja2==3.0)
+jupyter == 1.0.0
+widgetsnbextension == 3.5.2
