@@ -3,5 +3,9 @@
         "./racecar-6/library/",
         "./racecar-6/library/simulation",
         "./racecar-6/library/real"
-    ]
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8"
+    },
+    "python.formatting.provider": "none"
 }
