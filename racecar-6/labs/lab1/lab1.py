@@ -28,6 +28,8 @@ rc = racecar_core.create_racecar()
 # Functions
 ########################################################################################
 
+global queue
+queue = []
 
 def start():
     """
@@ -61,14 +63,34 @@ def update():
 
     if rc.controller.was_pressed(rc.controller.Button.A):
         print("Driving in a circle...")
-        # TODO (main challenge): Drive in a circle
+        queue.append([5.5,1,1])
 
+
+    if rc.controller.was_pressed(rc.controller.Button.B):
+        print("Driving in a star...")
+        for _ in range(5):
+            queue.append([2,1,0])
+            queue.append([1,1,1])
+            queue.append([3,-1,-1])
+            # queue.append([4,1,0])
+         
+            # queue.append([2,-1,-1])
+            # queue.append([2,-1,0])
+            # queue.append([2,-1,-1])
     # TODO (main challenge): Drive in a square when the B button is pressed
 
     # TODO (main challenge): Drive in a figure eight when the X button is pressed
 
     # TODO (main challenge): Drive in a shape of your choice when the Y button
     # is pressed
+    if len(queue) != 0:
+        queue[0][0] -= rc.get_delta_time()
+        command = queue[0]
+
+        rc.drive.set_speed_angle(command[1], command[2])
+        if command[0] <= 0:
+            queue.pop(0)
+        
 
 
 ########################################################################################
