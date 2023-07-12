@@ -81,7 +81,8 @@ def update():
     if rc.controller.was_pressed(rc.controller.Button.B):
         print("Driving in a square...")
         for _ in range(4):
-            queue.append([2,0.5,1])
+            queue.append([2,0.5,0])
+            queue.append([0.5,0.5,1])
 
     # TODO (main challenge): Drive in a figure eight when the X button is pressed
 
