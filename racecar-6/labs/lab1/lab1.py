@@ -66,7 +66,7 @@ def update():
         queue.append([5.5,1,1])
 
 
-    if rc.controller.was_pressed(rc.controller.Button.B):
+    if rc.controller.was_pressed(rc.controller.Button.Y):
         print("Driving in a star...")
         for _ in range(5):
             queue.append([2,1,0])
@@ -77,7 +77,11 @@ def update():
             # queue.append([2,-1,-1])
             # queue.append([2,-1,0])
             # queue.append([2,-1,-1])
-    # TODO (main challenge): Drive in a square when the B button is pressed
+
+    if rc.controller.was_pressed(rc.controller.Button.B):
+        print("Driving in a square...")
+        for _ in range(4):
+            queue.append([2,0.5,1])
 
     # TODO (main challenge): Drive in a figure eight when the X button is pressed
 
