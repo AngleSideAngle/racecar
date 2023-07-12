@@ -1,0 +1,7 @@
+{
+    "python.analysis.extraPaths": [
+        "./racecar-asa/library/",
+        "./racecar-asa/library/simulation",
+        "./racecar-asa/library/real"
+    ]
+}
