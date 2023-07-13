@@ -53,6 +53,17 @@ loc_over_time.append(location)
 
 global counter
 counter = 0
+
+def drive_command(time: float, power: float, angle: float) -> commands.Command:
+    return commands.run(lambda: rc.drive.set_speed_angle(power, angle)).with_timeout(time)
+
+def square() -> commands.Command:
+    side = commands.Sequence(
+        drive_command(2, 0.5, 0),
+        drive_command(0.5, 0.5, 1)
+    )
+    return commands.Sequence(*[side for _ in range(5)]).along_with(commands.print("Driving in a square..."))
+
 def start():
     """
     This function is run once every time the start button is pressed
@@ -100,30 +111,24 @@ def update():
     angle -= math.degrees(rc.physics.get_angular_velocity()[1]) * rc.get_delta_time() 
 
     if rc.controller.was_pressed(rc.controller.Button.X):
-        scheduler.schedule(commands.run(lambda: rc.drive.set_speed_angle(1, -.02)).with_timeout(1))
+        scheduler.schedule(drive_command(1, 0.5, -0.2))
     
     if rc.controller.was_pressed(rc.controller.Button.A):
         print("Driving in a circle...")
         queue.append([5.5,1,1])
-        
+
     if rc.controller.was_pressed(rc.controller.Button.Y):
         print("Driving in a star...")
-        for _ in range(5):
-            # queue.append(("rotrel", 30))
-            queue.append([5,1,0])
-            queue.append([1,1,1])
-            queue.append([3,-1,-1])
-            # queue.append([4,1,0])
-         
-            # queue.append([2,-1,-1])
-            # queue.append([2,-1,0])
-            # queue.append([2,-1,-1])
+        side = commands.Sequence(
+            drive_command(5, 1, 0),
+            drive_command(1, 1, 1),
+            drive_command(3, -1, -1)
+        )
+        star = commands.Sequence(*[side for _ in range(5)])
+        scheduler.schedule(star)
 
     if rc.controller.was_pressed(rc.controller.Button.B):
-        print("Driving in a square...")
-        for _ in range(4):
-            queue.append([2,0.5,0])
-            queue.append([0.5,0.5,1])
+        scheduler.schedule(square())
 
     # TODO (main challenge): Drive in a square when the B button is pressed
 

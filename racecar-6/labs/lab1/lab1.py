@@ -59,6 +59,8 @@ def update():
     is pressed
     """
     # TODO (warmup): Implement acceleration and steering
+    global queue
+    
     rc.drive.set_speed_angle(0, 0)
 
     if rc.controller.was_pressed(rc.controller.Button.A):
