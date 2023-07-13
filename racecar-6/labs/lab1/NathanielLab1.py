@@ -63,10 +63,12 @@ def update():
 
     if rc.controller.was_pressed(rc.controller.Button.A):
         print("Driving in a circle...")
+        queue.clear()
         queue.append([5.5,1,1])
 
     if rc.controller.was_pressed(rc.controller.Button.Y):
         print("Driving in a star...")
+        queue.clear()
         for _ in range(5):
             queue.append([2,1,0])
             queue.append([1,1,1])
@@ -79,16 +81,18 @@ def update():
 
     if rc.controller.was_pressed(rc.controller.Button.B):
         print("Driving in a square...")
+        queue.clear()
         for _ in range(4):
-            queue.append([2,0.5,0])
-            queue.append([1.5,1,1])
+            queue.append([0.6,0.2,0])
+            queue.append([1,0.2,1])
 
     # TODO (main challenge): Drive in a figure eight when the X button is pressed
     if rc.controller.was_pressed(rc.controller.Button.X):
         print("Driving in a figure eight...")
+        queue.clear()
         for _ in range(1):
-            queue.append([5.5,0.5,1])
-            queue.append([5.5,0.5,-1])
+            queue.append([3.5,0.2,1])
+            queue.append([3.5,0.2,-1])
     # TODO (main challenge): Drive in a shape of your choice when the Y button
     # is pressed
     if len(queue) != 0:
