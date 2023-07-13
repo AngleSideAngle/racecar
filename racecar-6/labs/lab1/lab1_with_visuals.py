@@ -19,6 +19,7 @@ import numpy as np
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
+import commands
 
 ########################################################################################
 # Global variables
@@ -31,6 +32,9 @@ rc = racecar_core.create_racecar()
 ########################################################################################
 # Functions
 ########################################################################################
+
+global scheduler
+scheduler: commands.Scheduler = commands.Scheduler(default_command=commands.run(rc.drive.stop))
 
 global queue
 queue = []
@@ -83,6 +87,7 @@ def update():
     global velocity
     global loc_over_time
     global counter
+    global scheduler
     
 
 
@@ -94,15 +99,13 @@ def update():
     loc_over_time.append(location.copy())
     angle -= math.degrees(rc.physics.get_angular_velocity()[1]) * rc.get_delta_time() 
 
+    if rc.controller.was_pressed(rc.controller.Button.X):
+        scheduler.schedule(commands.run(lambda: rc.drive.set_speed_angle(1, -.02)).with_timeout(1))
     
     if rc.controller.was_pressed(rc.controller.Button.A):
         print("Driving in a circle...")
         queue.append([5.5,1,1])
-
-
-    
-   
-
+        
     if rc.controller.was_pressed(rc.controller.Button.Y):
         print("Driving in a star...")
         for _ in range(5):
@@ -148,6 +151,8 @@ def update():
                 loc_over_time = []
                 loc_over_time.append(location)
                 queue.pop(0)
+
+    scheduler.run()
             
         
 
