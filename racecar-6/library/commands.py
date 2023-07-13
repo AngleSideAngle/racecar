@@ -23,6 +23,9 @@ class Command(abc.ABC):
     def and_then(self, other):
         return Sequence(self, other)
     
+    def along_with(self, other):
+        return Parallel(self, other)
+    
     def race_with(self, other):
         return ParallelRace(self, other)
     
@@ -64,7 +67,7 @@ class WaitCommand(Command):
         self.dt = delta_time
 
     def initialize(self) -> None:
-        self.start_time = time.perf_counter
+        self.start_time = time.perf_counter()
 
     def execute(self) -> None:
         pass
@@ -73,38 +76,38 @@ class WaitCommand(Command):
         pass
 
     def is_finished(self) -> bool:
-        return time.perf_counter > self.start_time + self.dt
+        return time.perf_counter() > self.start_time + self.dt
 
 class Sequence(Command):
 
     def __init__(self, *commands: Command) -> None:
-        self.commands = list(commands)
+        self.commands = list(commands)[::-1]
 
     def initialize(self) -> None:
         if self.commands:
-            self.commands[0].initialize()
+            self.commands[-1].initialize()
 
     def execute(self) -> None:
         if not self.commands:
             return
-        
-        current_command = self.commands[0]
+    
+        current_command = self.commands[-1]
 
         current_command.execute()
         
         if current_command.is_finished():
-            current_command.end(interrupted=False)
-            self.commands.pop(0)
+            current_command.end(False)
+            self.commands.pop()
             if self.commands:
-                self.commands[0].initialize()
+                self.commands[-1].initialize()
 
     def end(self, interrupted: bool) -> None:
         if interrupted and self.commands:
-            self.commands[0].end()
+            self.commands[-1].end(True)
 
     def is_finished(self) -> bool:
-        return not self.commands
-    
+        return len(self.commands) < 1
+
 class Parallel(Command):
 
     def __init__(self, *commands: Command) -> None:
@@ -115,7 +118,7 @@ class Parallel(Command):
             command.initialize()
 
     def execute(self) -> None:
-        for command, running in self.commands:
+        for command, running in self.commands.items():
             if not running:
                 continue
             command.execute()
@@ -125,13 +128,13 @@ class Parallel(Command):
 
     def end(self, interrupted: bool) -> None:
         if interrupted:
-            for command, running in self.commands:
+            for command, running in self.commands.items():
                 if running:
                     command.end(True)
 
     def is_finished(self) -> bool:
         return True not in self.commands.values()
-    
+
 class ParallelRace(Command):
 
     def __init__(self, *commands: Command) -> None:
@@ -154,7 +157,7 @@ class ParallelRace(Command):
 
     def is_finished(self) -> bool:
         return self.finished
-    
+
 class Scheduler:
     scheduled: Optional[Command]
     to_schedule: Optional[Command]
@@ -175,7 +178,7 @@ class Scheduler:
         # runs scheduled command
         if self.scheduled:
             self.scheduled.execute()
-            if self.scheduled.is_finished:
+            if self.scheduled.is_finished():
                 self.scheduled.end(False)
                 self.scheduled = None
 
@@ -184,12 +187,14 @@ class Scheduler:
             if self.scheduled:
                 self.scheduled.end(True)
             self.scheduled = self.to_schedule
+            self.scheduled.initialize()
             self.to_schedule = None
 
         # schedules default if needed
         if not self.scheduled and self.default_command:
             self.scheduled = self.default_command
-            
+            self.scheduled.initialize()
+
 # utility functions
 def once(action: Callable[[], None]) -> Command:
     return CommandImpl(execute=action, is_finished=lambda: True)
@@ -197,27 +202,31 @@ def once(action: Callable[[], None]) -> Command:
 def run(action: Callable[[], None]) -> Command:
     return CommandImpl(execute=action)
 
-def print(text: str) -> Command:
+def print_once(text: str) -> Command:
     return once(lambda: print(text))
 
-    
+
 # tests
 if __name__ == "__main__":
 
+    print("check console for tests")
+
     scheduler = Scheduler(default_command=print("default"))
 
-    a = print("hi")
-    b = print("bye")
+    a = print_once("hi")
+    b = print_once("bye")
     combined = a + b
 
     other = CommandImpl(execute=lambda: print("spam")).with_timeout(2.0) # spams for 2 seconds
+    other.initialize()
+    other.execute()
 
     combined.execute()
     combined.execute()
     combined.execute()
 
     idk = CommandImpl(execute=lambda: print("executing"), end=lambda interrupted: print(f"interrupted: {interrupted}"))
-    conflicting = print("the interrupting command")
+    conflicting = print_once("the interrupting command")
 
     scheduler.schedule(idk)
 
