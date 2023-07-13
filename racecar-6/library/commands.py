@@ -191,20 +191,23 @@ class Scheduler:
             self.scheduled = self.default_command
             
 # utility functions
-def instant_command(action: Callable[[], None]) -> Command:
+def once(action: Callable[[], None]) -> Command:
     return CommandImpl(execute=action, is_finished=lambda: True)
 
-def print_command(text: str) -> Command:
-    return instant_command(lambda: print(text))
+def run(action: Callable[[], None]) -> Command:
+    return CommandImpl(execute=action)
+
+def print(text: str) -> Command:
+    return once(lambda: print(text))
 
     
 # tests
 if __name__ == "__main__":
 
-    scheduler = Scheduler(default_command=print_command("default"))
+    scheduler = Scheduler(default_command=print("default"))
 
-    a = print_command("hi")
-    b = print_command("bye")
+    a = print("hi")
+    b = print("bye")
     combined = a + b
 
     other = CommandImpl(execute=lambda: print("spam")).with_timeout(2.0) # spams for 2 seconds
@@ -214,7 +217,7 @@ if __name__ == "__main__":
     combined.execute()
 
     idk = CommandImpl(execute=lambda: print("executing"), end=lambda interrupted: print(f"interrupted: {interrupted}"))
-    conflicting = print_command("the interrupting command")
+    conflicting = print("the interrupting command")
 
     scheduler.schedule(idk)
 
