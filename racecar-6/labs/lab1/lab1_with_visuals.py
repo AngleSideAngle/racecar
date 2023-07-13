@@ -51,8 +51,8 @@ def drive_command(time: float, power: float, angle: float) -> commands.Command:
 
 def square() -> commands.Command:
     side = lambda: commands.Sequence(
-        drive_command(1, 0.5, 0),
-        drive_command(0.5, 0.5, 1)
+        drive_command(1, 0.3, 0),
+        drive_command(2, 0.2, 1)
     )
     return commands.Sequence(*[side() for _ in range(4)]).along_with(commands.print_once("Driving in a square..."))
 
@@ -64,8 +64,12 @@ def star() -> commands.Command:
     )
     return commands.Sequence(*[side() for _ in range(5)]).along_with(commands.print_once("Driving in a star..."))
 
-def circle() -> commands.Command:
-    return drive_command(5.5, 1, 1).along_with(commands.print_once("Driving in a circle..."))
+def circle(angle: float = 1) -> commands.Command:
+    return drive_command(5.5, 1, angle).along_with(commands.print_once("Driving in a circle..."))
+
+def eight() -> commands.Command:
+    return circle(angle=1).and_then(circle(angle=-1))
+    
 
 def start():
     """
@@ -114,6 +118,9 @@ def update():
 
     if rc.controller.was_pressed(rc.controller.Button.Y):
         scheduler.schedule(star())
+
+    if rc.controller.was_pressed(rc.controller.Button.X):
+        scheduler.schedule(eight())
 
     if rc.controller.was_pressed(rc.controller.Button.B):
         scheduler.schedule(square())
