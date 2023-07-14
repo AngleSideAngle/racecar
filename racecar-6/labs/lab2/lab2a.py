@@ -10,6 +10,7 @@ Lab 2A - Color Image Line Following
 # Imports
 ########################################################################################
 
+from enum import Enum
 import sys
 import cv2 as cv
 import numpy as np
@@ -30,11 +31,15 @@ rc = racecar_core.create_racecar()
 MIN_CONTOUR_AREA = 30
 
 # A crop window for the floor directly in front of the car
-CROP_FLOOR = ((360, 0), (rc.camera.get_height(), rc.camera.get_width()))
+CROP_FLOOR = ((rc.camera.get_height() // 4, 0), (rc.camera.get_height() // 2, rc.camera.get_width() // 2))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((90, 50, 50), (120, 255, 255))  # The HSV range for the color blue
+RED = ((), ())
+GREEN = ((), ())
+
 # TODO (challenge 1): add HSV ranges for other colors
+PRIORITY = (GREEN, BLUE, RED)
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -42,7 +47,7 @@ angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 controller = PIDController(
-    k_p=6,
+    k_p=9,
     k_i=0,
     k_d=0.1,
     min_output=-1,
@@ -173,13 +178,15 @@ def update():
         angle = controller.calculate(position=0, setpoint=angular_offset)
         print(f"angular offset: {angular_offset}")
         print(controller)
+    else:
+        angle = 1 if angle > 0 else -1
     print(angle)
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = forwardSpeed - backSpeed
-    speed = 1 # testing
+    speed = 0.5 * (forwardSpeed - backSpeed)
+    # speed = 1 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
