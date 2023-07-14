@@ -34,8 +34,8 @@ MIN_CONTOUR_AREA = 30
 CROP_FLOOR = ((rc.camera.get_height() // 4, 0), (rc.camera.get_height() // 2, rc.camera.get_width() // 2))
 
 # Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((90, 50, 50), (120, 255, 255))  # The HSV range for the color blue
-RED = ((), ())
+BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
+RED = ((145, 140, 225), (180, 235, 255))
 GREEN = ((), ())
 
 # TODO (challenge 1): add HSV ranges for other colors
