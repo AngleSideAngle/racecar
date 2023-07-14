@@ -44,30 +44,16 @@ contour_area = 0  # The area of contour
 controller = PIDController(
     k_p=6,
     k_i=0,
-    k_d=0,
-    setpoint=rc.camera.get_width() / 2 # target x at center of camera
+    k_d=0.1,
+    min_output=-1,
+    max_output=1
 )
 
 ########################################################################################
 # Functions
 ########################################################################################
 
-# clamp and remap_range are from the lab2 notebook
-def clamp(value: float, vmin: float, vmax: float) -> float:
-    """
-    Clamps a value between a minimum and maximum value.
-
-    Args:
-        value: The input to clamp.
-        vmin: The minimum allowed value.
-        vmax: The maximum allowed value.
-
-    Returns:
-        The value saturated between vmin and vmax.
-    """
-
-    return max(min(value, vmax), vmin)
-
+# from the lab2 notebook
 def remap_range(
     val: float,
     old_min: float,
@@ -183,19 +169,17 @@ def update():
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        angular_offset = remap_range(contour_center[1], 0, 640, -1, 1)
-        output = controller.calculate(position=0, setpoint=angular_offset)
+        angular_offset = remap_range(contour_center[1], 0, rc.camera.get_width(), -1, 1)
+        angle = controller.calculate(position=0, setpoint=angular_offset)
         print(f"angular offset: {angular_offset}")
-        print(f"control output {output}")
-        angle = clamp(output, -1, 1)
-    print(controller)
+        print(controller)
     print(angle)
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
     speed = forwardSpeed - backSpeed
-    speed = 0.5 # testing
+    speed = 1 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
