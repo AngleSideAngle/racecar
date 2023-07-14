@@ -39,7 +39,7 @@ CROP_FLOOR = ((rc.camera.get_height() // 4, 0), (rc.camera.get_height() // 2, rc
 BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
 # BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((145, 140, 225), (179, 235, 255))
-GREEN = ((0, 0, 0), (0, 0, 0))
+GREEN = ((137 // 2 - 20, 98-50, 80-50), (137//2 + 20, 255, 255))
 
 # TODO (challenge 1): add HSV ranges for other colors
 PRIORITY = (GREEN, BLUE, RED)
@@ -112,7 +112,7 @@ def update_contour():
         # Crop the image to the floor directly in front of the car
         image = crop_bottom_half(image)
 
-        for color in PRIORITY:
+        for idx, color in enumerate(PRIORITY):
             hsv_lower = color[0]
             hsv_upper = color[1]
             # Find all of the current color's contours
@@ -126,7 +126,7 @@ def update_contour():
             else:
                 contour_center = rc_utils.get_contour_center(contour)
                 contour_area = rc_utils.get_contour_area(contour)
-
+                print(idx)
                 # Draw contour onto the image
                 rc_utils.draw_contour(image, contour)
                 rc_utils.draw_circle(image, contour_center)
