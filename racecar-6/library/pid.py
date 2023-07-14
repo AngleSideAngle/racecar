@@ -7,7 +7,15 @@ class PIDController:
     A PID implementation with variable time intervals, using system time
     """
 
-    def __init__(self, k_p: float, k_i: float, k_d: float, setpoint: float = 0) -> None:
+    def __init__(
+        self,
+        k_p: float,
+        k_i: float,
+        k_d: float,
+        setpoint: float = 0,
+        min_output: Optional[float] = None,
+        max_output: Optional[float] = None
+    ) -> None:
         self.k_p = k_p
         self.k_i = k_i
         self.k_d = k_d
@@ -16,6 +24,9 @@ class PIDController:
         self.prev_error = 0
         self.setpoint = setpoint
         self.sum = 0
+
+        self.min_output = min_output
+        self.max_output = max_output
 
     def calculate(
         self,
@@ -40,7 +51,15 @@ class PIDController:
 
         self.prev_error = error
 
-        return self.k_p * error + self.k_i * self.sum + self.k_d * derivative
+        control_effort = self.k_p * error + self.k_i * self.sum + self.k_d * derivative
+
+        if self.min_output:
+            control_effort = max(control_effort, self.min_output)
+
+        if self.max_output:
+            control_effort = min(control_effort, self.max_output)
+
+        return control_effort
 
     def __repr__(self) -> str:
         return f"PID: k_p: {self.k_p}, k_i: {self.k_i}, k_d: {self.k_d}, setpoint: {self.setpoint}, error: {self.prev_error}, integral: {self.sum}"
