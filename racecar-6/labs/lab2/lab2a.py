@@ -17,6 +17,7 @@ import numpy as np
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
+from pid import PIDController
 
 ########################################################################################
 # Global variables
@@ -40,11 +41,61 @@ speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
+controller = PIDController(
+    k_p=6,
+    k_i=0,
+    k_d=0,
+    setpoint=rc.camera.get_width() / 2 # target x at center of camera
+)
 
 ########################################################################################
 # Functions
 ########################################################################################
 
+# clamp and remap_range are from the lab2 notebook
+def clamp(value: float, vmin: float, vmax: float) -> float:
+    """
+    Clamps a value between a minimum and maximum value.
+
+    Args:
+        value: The input to clamp.
+        vmin: The minimum allowed value.
+        vmax: The maximum allowed value.
+
+    Returns:
+        The value saturated between vmin and vmax.
+    """
+
+    return max(min(value, vmax), vmin)
+
+def remap_range(
+    val: float,
+    old_min: float,
+    old_max: float,
+    new_min: float,
+    new_max: float,
+) -> float:
+    """
+    Remaps a value from one range to another range.
+
+    Args:
+        val: A number form the old range to be rescaled.
+        old_min: The inclusive 'lower' bound of the old range.
+        old_max: The inclusive 'upper' bound of the old range.
+        new_min: The inclusive 'lower' bound of the new range.
+        new_max: The inclusive 'upper' bound of the new range.
+
+    Note:
+        min need not be less than max; flipping the direction will cause the sign of
+        the mapping to flip.  val does not have to be between old_min and old_max.
+    """
+
+    diff = old_max - old_min
+    percent = val / diff
+    new_val = percent * (new_max - new_min)
+    new_val += new_min
+
+    return new_val
 
 def update_contour():
     """
@@ -132,17 +183,19 @@ def update():
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        # Current implementation: bang-bang control (very choppy)
-        # TODO (warmup): Implement a smoother way to follow the line
-        if contour_center[1] < rc.camera.get_width() / 2:
-            angle = -1
-        else:
-            angle = 1
+        angular_offset = remap_range(contour_center[1], 0, 640, -1, 1)
+        output = controller.calculate(position=0, setpoint=angular_offset)
+        print(f"angular offset: {angular_offset}")
+        print(f"control output {output}")
+        angle = clamp(output, -1, 1)
+    print(controller)
+    print(angle)
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
     speed = forwardSpeed - backSpeed
+    speed = 0.5 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
