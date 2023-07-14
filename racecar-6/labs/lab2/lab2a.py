@@ -15,6 +15,8 @@ import sys
 import cv2 as cv
 import numpy as np
 
+import cv_functions
+
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
@@ -40,6 +42,7 @@ GREEN = ((), ())
 
 # TODO (challenge 1): add HSV ranges for other colors
 PRIORITY = (GREEN, BLUE, RED)
+
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -97,38 +100,67 @@ def update_contour():
     global contour_area
 
     image = rc.camera.get_color_image()
-
+    
     if image is None:
         contour_center = None
         contour_area = 0
     else:
-        # TODO (challenge 1): Search for multiple tape colors with a priority order
-        # (currently we only search for blue)
-
         # Crop the image to the floor directly in front of the car
         image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
 
-        # Find all of the blue contours
-        contours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+        for color in PRIORITY:
+            hsv_lower = color[0]
+            hsv_upper = color[1]
+            # Find all of the current color's contours
+            contours = rc_utils.find_contours(image, color[0], color[1])
 
-        # Select the largest contour
-        contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+            # Select the largest contour
+            contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
-        if contour is not None:
-            # Calculate contour information
-            contour_center = rc_utils.get_contour_center(contour)
-            contour_area = rc_utils.get_contour_area(contour)
+            if contour is None:
+                continue
+            else:
+                contour_center = rc_utils.get_contour_center(contour)
+                contour_area = rc_utils.get_contour_area(contour)
 
-            # Draw contour onto the image
-            rc_utils.draw_contour(image, contour)
-            rc_utils.draw_circle(image, contour_center)
+                # Draw contour onto the image
+                rc_utils.draw_contour(image, contour)
+                rc_utils.draw_circle(image, contour_center)
+                rc.display.show_color_image(image)
+                return 
+        contour_center = None
+        contour_area = 0
 
-        else:
-            contour_center = None
-            contour_area = 0
 
-        # Display the image to the screen
-        rc.display.show_color_image(image)
+            
+   
+        # # TODO (challenge 1): Search for multiple tape colors with a priority order
+        # # (currently we only search for blue)
+
+        # # Crop the image to the floor directly in front of the car
+        # image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
+
+        # # Find all of the blue contours
+        # contours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
+
+        # # Select the largest contour
+        # contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+        # if contour is not None:
+        #     # Calculate contour information
+        #     contour_center = rc_utils.get_contour_center(contour)
+        #     contour_area = rc_utils.get_contour_area(contour)
+
+        #     # Draw contour onto the image
+        #     rc_utils.draw_contour(image, contour)
+        #     rc_utils.draw_circle(image, contour_center)
+
+        # else:
+        #     contour_center = None
+        #     contour_area = 0
+
+        # # Display the image to the screen
+        # rc.display.show_color_image(image)
 
 
 def start():
