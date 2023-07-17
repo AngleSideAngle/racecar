@@ -31,16 +31,16 @@ rc = racecar_core.create_racecar()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 30
+MIN_CONTOUR_AREA = 50
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
 # BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((145, 140, 225), (179, 235, 255))
-GREEN = ((137 // 2 - 20, 98-50, 80-50), (137//2 + 20, 255, 255))
+GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
 # TODO (challenge 1): add HSV ranges for other colors
-PRIORITY = (BLUE, GREEN, RED)
+PRIORITY = (RED, BLUE, GREEN)
 
 
 # >> Variables
@@ -50,9 +50,9 @@ contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 screen_width = 0 # the width of the screen, in px, because it changes between real and sim
 controller = PIDController(
-    k_p=5,
+    k_p=0.2,
     k_i=0,
-    k_d=0.1,
+    k_d=0.03,
     min_output=-1,
     max_output=1
 )
@@ -111,7 +111,7 @@ def update_contour():
     else:
         # Crop the image to the floor directly in front of the car
         image = crop_floor(image)
-
+        contour_list = []
         for color in PRIORITY:
             # Find all of the current color's contours
             contours = rc_utils.find_contours(image, color[0], color[1])
@@ -121,7 +121,8 @@ def update_contour():
 
             # Select the largest contour
             contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
-
+            # print(f"area: {cv.contourArea(contour)}")
+            contour_list.append(contour_list)
             if contour is None:
                 continue
             else:
@@ -132,8 +133,27 @@ def update_contour():
                 rc_utils.draw_circle(image, contour_center)
                 rc.display.show_color_image(image)
                 return
-            
-        rc.display.show_color_image(image)
+        
+        for color in PRIORITY:
+            new_contours = rc_utils.find_contours(image, color[0], color[1])
+
+            # Set global screen width
+            screen_width = image.shape[1]
+
+            # Select the largest contour
+            contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
+            # print(f"area: {cv.contourArea(contour)}")
+            contour_list.append(contour_list)
+            if contour is None:
+                continue
+            else:
+                new_contour_center = rc_utils.get_contour_center(contour)
+                #contour_area = rc_utils.get_contour_area(contour)
+                # Draw contour onto the image
+                rc_utils.draw_contour(image, contour)
+                rc_utils.draw_circle(image, new_contour_center)
+                rc.display.show_color_image(image)
+                
         contour_center = None
         contour_area = 0
 
@@ -192,8 +212,8 @@ def update():
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = 0.5 * (forwardSpeed - backSpeed)
-    speed = 1 # testing
+    speed = 0.2 * (forwardSpeed - backSpeed)
+    # speed = 1 # testaing
 
     rc.drive.set_speed_angle(speed, angle)
 
