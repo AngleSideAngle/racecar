@@ -14,6 +14,7 @@ from enum import Enum
 import sys
 import cv2 as cv
 import numpy as np
+from nptyping import NDArray
 
 import cv_functions
 
@@ -32,9 +33,6 @@ rc = racecar_core.create_racecar()
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 30
 
-# A crop window for the floor directly in front of the car
-CROP_FLOOR = ((rc.camera.get_height() // 4, 0), (rc.camera.get_height() // 2, rc.camera.get_width() // 2))
-
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
 # BLUE = ((90, 50, 50), (120, 255, 255))
@@ -42,7 +40,7 @@ RED = ((145, 140, 225), (179, 235, 255))
 GREEN = ((137 // 2 - 20, 98-50, 80-50), (137//2 + 20, 255, 255))
 
 # TODO (challenge 1): add HSV ranges for other colors
-PRIORITY = (GREEN, BLUE, RED)
+PRIORITY = (BLUE, GREEN, RED)
 
 
 # >> Variables
@@ -50,8 +48,9 @@ speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
+screen_width = 0 # the width of the screen, in px, because it changes between real and sim
 controller = PIDController(
-    k_p=9,
+    k_p=5,
     k_i=0,
     k_d=0.1,
     min_output=-1,
@@ -92,7 +91,7 @@ def remap_range(
 
     return new_val
 
-def crop_bottom_half(image: np.ndarray) -> np.ndarray:
+def crop_floor(image: NDArray) -> NDArray:
     return rc_utils.crop(image, (image.shape[0] // 2, 0), (image.shape[0], image.shape[1]))
 
 def update_contour():
@@ -102,21 +101,23 @@ def update_contour():
     """
     global contour_center
     global contour_area
+    global screen_width
 
     image = rc.camera.get_color_image()
-    
+
     if image is None:
         contour_center = None
         contour_area = 0
     else:
         # Crop the image to the floor directly in front of the car
-        image = crop_bottom_half(image)
+        image = crop_floor(image)
 
-        for idx, color in enumerate(PRIORITY):
-            hsv_lower = color[0]
-            hsv_upper = color[1]
+        for color in PRIORITY:
             # Find all of the current color's contours
             contours = rc_utils.find_contours(image, color[0], color[1])
+
+            # Set global screen width
+            screen_width = image.shape[1]
 
             # Select the largest contour
             contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
@@ -126,43 +127,15 @@ def update_contour():
             else:
                 contour_center = rc_utils.get_contour_center(contour)
                 contour_area = rc_utils.get_contour_area(contour)
-                print(idx)
                 # Draw contour onto the image
                 rc_utils.draw_contour(image, contour)
                 rc_utils.draw_circle(image, contour_center)
                 rc.display.show_color_image(image)
-                return 
+                return
+            
+        rc.display.show_color_image(image)
         contour_center = None
         contour_area = 0
-
-   
-        # # TODO (challenge 1): Search for multiple tape colors with a priority order
-        # # (currently we only search for blue)
-
-        # # Crop the image to the floor directly in front of the car
-        # image = rc_utils.crop(image, CROP_FLOOR[0], CROP_FLOOR[1])
-
-        # # Find all of the blue contours
-        # contours = rc_utils.find_contours(image, BLUE[0], BLUE[1])
-
-        # # Select the largest contour
-        # contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
-
-        # if contour is not None:
-        #     # Calculate contour information
-        #     contour_center = rc_utils.get_contour_center(contour)
-        #     contour_area = rc_utils.get_contour_area(contour)
-
-        #     # Draw contour onto the image
-        #     rc_utils.draw_contour(image, contour)
-        #     rc_utils.draw_circle(image, contour_center)
-
-        # else:
-        #     contour_center = None
-        #     contour_area = 0
-
-        # # Display the image to the screen
-        # rc.display.show_color_image(image)
 
 
 def start():
@@ -208,7 +181,7 @@ def update():
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        angular_offset = remap_range(contour_center[1], 0, rc.camera.get_width(), -1, 1)
+        angular_offset = remap_range(contour_center[1], 0, screen_width, -1, 1)
         angle = controller.calculate(position=0, setpoint=angular_offset)
         print(f"angular offset: {angular_offset}")
         print(controller)
@@ -220,7 +193,7 @@ def update():
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
     speed = 0.5 * (forwardSpeed - backSpeed)
-    # speed = 1 # testing
+    speed = 1 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
