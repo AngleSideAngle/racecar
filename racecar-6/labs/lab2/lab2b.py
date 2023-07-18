@@ -11,8 +11,10 @@ Lab 2B - Color Image Cone Parking
 ########################################################################################
 
 import sys
+from typing import Optional, Tuple
 import cv2 as cv
 import numpy as np
+from nptyping import NDArray
 
 sys.path.insert(1, "../../library")
 import racecar_core
@@ -34,7 +36,7 @@ rc = racecar_core.create_racecar()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 30
+MIN_DEPTH_THRESHOLD = 10 # This distance is in cm
 
 # The HSV range for the color orange, stored as (hsv_min, hsv_max)
 ORANGE = ((10, 100, 100), (20, 255, 255))
@@ -49,6 +51,30 @@ cur_state = State.SEARCH #the robot state
 ########################################################################################
 # Functions
 ########################################################################################
+
+def get_closest_depth() -> Optional[float]:
+    """
+    Finds the closest depth value
+    """
+
+    depth_image = rc.camera.get_depth_image()
+
+    if depth_image is None:
+        return None
+    
+    # Crop the image
+    top_left_inclusive = (0, 0)
+    bottom_right_exclusive = (depth_image.shape[0] * 2 // 3, depth_image.shape[1])
+
+    cropped_image = rc_utils.crop(depth_image, top_left_inclusive, bottom_right_exclusive)
+
+    # Find closest pixel
+    closest_pixel = rc_utils.get_closest_pixel(depth_image)
+
+    # Telemetry
+    rc.display.show_depth_image(depth_image, points=[closest_pixel])
+
+    return depth_image[closest_pixel[0], closest_pixel[1]]
 
 
 def update_contour():
@@ -186,14 +212,11 @@ def update():
     
 
     rc.drive.set_speed_angle(speed, angle)
-
-    # Here we are initializing the starting state to be search
-    cur_state: State = State.SEARCH
     
     if cur_state == State.SEARCH:
         #setting speed and angle to wander
-        speed=0.4
-        angle=0
+        speed = 0.4
+        angle = 0
         if contour_center:
             cur_state = State.APPROACH
 
@@ -201,25 +224,12 @@ def update():
         angular_offset = remap_range(contour_center[1], 0, screen_width, -1, 1)
         angle = controller.calculate(position=0, setpoint=angular_offset)
         speed = 0.4
-        if next_to_cone:
-        
-        cur_state = State.STOP
-            if not cone_identified: 
-                cur_state = State.SEARCH
+        if get_closest_depth() < MIN_DEPTH_THRESHOLD:
+            cur_state = State.STOP
+
     if cur_state == State.STOP:
         speed = 0
         angle = 0
-    
-
-
-
-
-
-
-
-        
-
-    
 
     # TODO: Park the car 30 cm away from the closest orange cone
 
