@@ -17,10 +17,18 @@ import numpy as np
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
-
+from pid import PIDController
+from enum import IntEnum
 ########################################################################################
 # Global variables
 ########################################################################################
+
+
+class State(IntEnum):
+    SEARCH = 0
+    APPROACH = 1
+    STOP = 2
+
 
 rc = racecar_core.create_racecar()
 
@@ -36,6 +44,7 @@ speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
+cur_state = State.SEARCH #the robot state
 
 ########################################################################################
 # Functions
@@ -49,6 +58,7 @@ def update_contour():
     """
     global contour_center
     global contour_area
+    global screen_width
 
     image = rc.camera.get_color_image()
 
@@ -61,6 +71,9 @@ def update_contour():
 
         # Select the largest contour
         contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+        # Set global screen width
+        screen_width = image.shape[1]
 
         if contour is not None:
             # Calculate contour information
@@ -85,6 +98,8 @@ def start():
     """
     global speed
     global angle
+    global cur_state 
+    
 
     # Initialize variables
     speed = 0
@@ -97,8 +112,51 @@ def start():
     rc.set_update_slow_time(0.5)
 
     # Print start message
-    print(">> Lab 2B - Color Image Cone Parking")
 
+    print(">> Lab 2B - Color Image Cone Parking")
+    global controller
+    speed = 0.0  # The current speed of the car
+    angle = 0.0  # The current angle of the car's wheels
+    screen_width = 0 # the width of the screen, in px, because it changes between real and sim
+    contour_center = None  # The (pixel row, pixel column) of contour
+    contour_area = 0  # The area of contour
+    screen_width = 0 # the width of the screen, in px, because it changes between real and sim
+    controller = PIDController(
+        k_p=5,
+        k_i=0,
+        k_d=0.1,
+        min_output=-1,
+        max_output=1
+    )
+
+def remap_range(
+    val: float,
+    old_min: float,
+    old_max: float,
+    new_min: float,
+    new_max: float,
+) -> float:
+    """
+    Remaps a value from one range to another range.
+
+    Args:
+        val: A number form the old range to be rescaled.
+        old_min: The inclusive 'lower' bound of the old range.
+        old_max: The inclusive 'upper' bound of the old range.
+        new_min: The inclusive 'lower' bound of the new range.
+        new_max: The inclusive 'upper' bound of the new range.
+
+    Note:
+        min need not be less than max; flipping the direction will cause the sign of
+        the mapping to flip.  val does not have to be between old_min and old_max.
+    """
+
+    diff = old_max - old_min
+    percent = val / diff
+    new_val = percent * (new_max - new_min)
+    new_val += new_min
+
+    return new_val
 
 def update():
     """
@@ -107,9 +165,61 @@ def update():
     """
     global speed
     global angle
+    global cur_state
+
+    update_contour()
 
     # Search for contours in the current color image
-    update_contour()
+   # update_contour()
+
+    #global contour_center
+    
+
+    #angular_offset = remap_range(contour_center[1], 0, screen_width, -1, 1)
+    #angle = controller.calculate(position=0, setpoint=angular_offset)
+
+
+     # Use the triggers to control the car's speed
+    #forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
+    #backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
+    #speed = 0.5 * (forwardSpeed - backSpeed)
+    
+
+    rc.drive.set_speed_angle(speed, angle)
+
+    # Here we are initializing the starting state to be search
+    cur_state: State = State.SEARCH
+    
+    if cur_state == State.SEARCH:
+        #setting speed and angle to wander
+        speed=0.4
+        angle=0
+        if contour_center:
+            cur_state = State.APPROACH
+
+    if cur_state == State.APPROACH:
+        angular_offset = remap_range(contour_center[1], 0, screen_width, -1, 1)
+        angle = controller.calculate(position=0, setpoint=angular_offset)
+        speed = 0.4
+        if next_to_cone:
+        
+        cur_state = State.STOP
+            if not cone_identified: 
+                cur_state = State.SEARCH
+    if cur_state == State.STOP:
+        speed = 0
+        angle = 0
+    
+
+
+
+
+
+
+
+        
+
+    
 
     # TODO: Park the car 30 cm away from the closest orange cone
 
@@ -123,7 +233,7 @@ def update():
             print("No contour found")
         else:
             print("Center:", contour_center, "Area:", contour_area)
-
+    rc.drive.set_speed_angle(speed, angle)
 
 def update_slow():
     """
