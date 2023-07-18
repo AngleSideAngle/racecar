@@ -39,6 +39,62 @@ BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
 RED = ((145, 140, 225), (179, 235, 255))
 GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
+color_num_to_str = { 
+    0 : "blue",
+    1 : "red",
+    2 : "green"
+}
+
+hsv_num_to_str = { 
+    0 : "Hue",
+    1 : "Saturation",
+    2 : "Value"
+}
+
+color_idx = 0
+HSV_idx = 0
+threshold_incremement = 5
+
+
+color_idx_to_tuple = {
+    0 : BLUE,
+    1 : RED,
+    2 : GREEN
+}
+
+def update_based_on_taps():
+    if rc.controller.was_pressed(rc.controller.Button.A):
+        color_idx = (color_idx + 1) % 3 
+    if rc.controller.was_pressed(rc.controller.Button.B):
+        HSV_idx = (HSV_idx + 1) % 3 
+    if rc.controller.was_pressed(rc.controller.Button.X):
+        color_idx_to_tuple[color_idx][HSV_idx] = max(
+                                color_idx_to_tuple[color_idx][HSV_idx] + threshold_incremement, 255)
+    if rc.controller.was_pressed(rc.controller.Button.Y):
+        color_idx_to_tuple[color_idx][HSV_idx] = min(
+                                color_idx_to_tuple[color_idx][HSV_idx] - threshold_incremement, 0)
+    
+    draw_image(rc.camera.get_color_image(), color_idx_to_tuple[color_idx])
+
+    print(f"{color_num_to_str[color_idx]} : {color_idx_to_tuple[color_idx]}")
+    print(f"HSV_idx : {HSV_idx}, color_idx : {color_idx}")
+
+def draw_image(image, tuple):
+    contours = rc_utils.find_contours(image, tuple[0], tuple[1])
+
+    # Select the largest contour
+    contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+    if contour is None:
+        rc.display.show_color_image(image)
+    else:
+        contour_center = rc_utils.get_contour_center(contour)
+        contour_area = rc_utils.get_contour_area(contour)
+
+        # Draw contour onto the image
+        rc_utils.draw_contour(image, contour)
+        rc_utils.draw_circle(image, contour_center)
+        rc.display.show_color_image(image)
 # TODO (challenge 1): add HSV ranges for other colors
 PRIORITY = (RED, BLUE, GREEN)
 
