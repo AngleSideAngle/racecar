@@ -34,7 +34,7 @@ rc = racecar_core.create_racecar()
 MIN_CONTOUR_AREA = 50
 
 # Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((85, 155, 230), (100, 200, 255))  # The HSV range for the color blue
+BLUE = ([91-20, 106-45, 206-30], (91+20, 110+45, 208+40))  # The HSV range for the color blue
 # BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((145, 140, 225), (179, 235, 255))
 GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
@@ -50,6 +50,9 @@ hsv_num_to_str = {
     1 : "Saturation",
     2 : "Value"
 }
+global color_idx
+global HSV_idx
+global threshold_incremement
 
 color_idx = 0
 HSV_idx = 0
@@ -63,6 +66,9 @@ color_idx_to_tuple = {
 }
 
 def update_based_on_taps():
+    global color_idx
+    global HSV_idx
+
     if rc.controller.was_pressed(rc.controller.Button.A):
         color_idx = (color_idx + 1) % 3 
     if rc.controller.was_pressed(rc.controller.Button.B):
@@ -108,7 +114,7 @@ screen_width = 0 # the width of the screen, in px, because it changes between re
 controller = PIDController(
     k_p=0.2,
     k_i=0,
-    k_d=0.03,
+    k_d=0.04,
     min_output=-1,
     max_output=1
 )
@@ -268,7 +274,7 @@ def update():
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = 0.2 * (forwardSpeed - backSpeed)
+    speed = 0.3 * (forwardSpeed - backSpeed)
     # speed = 1 # testaing
 
     rc.drive.set_speed_angle(speed, angle)
@@ -276,7 +282,7 @@ def update():
     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
-
+    update_based_on_taps()
     # Print the center and area of the largest contour when B is held down
     if rc.controller.is_down(rc.controller.Button.B):
         if contour_center is None:
