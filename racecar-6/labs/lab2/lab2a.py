@@ -36,7 +36,7 @@ MIN_CONTOUR_AREA = 50
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))  # The HSV range for the color blue
 # BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((160, 84-65, 194-20), (179, 154+65, 255))
+RED = ((160-20, 111-45, 182-40), (179, 157+45, 255))
 GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
 color_num_to_str = { 
