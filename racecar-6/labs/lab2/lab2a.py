@@ -12,7 +12,7 @@ Lab 2A - Color Image Line Following
 
 from enum import Enum
 import sys
-from typing import List
+from typing import *
 import cv2 as cv
 import numpy as np
 from nptyping import NDArray
@@ -32,11 +32,11 @@ rc = racecar_core.create_racecar()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 50
+MIN_CONTOUR_AREA = 60
 
 # Colors, stored as a pair (hsv_min, hsv_max)
-BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))  # The HSV range for the color blue
-# BLUE = ((90, 50, 50), (120, 255, 255))
+# BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))  # The HSV range for the color blue
+BLUE = ((90, 50, 50), (120, 255, 255))
 RED = ((160-20, 111-45, 182-40), (179, 157+45, 255))
 GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
@@ -110,16 +110,14 @@ contour_center = None  # The (pixel row, pixel column) of contour
 contour_area = 0  # The area of contour
 screen_width = 0 # the width of the screen, in px, because it changes between real and sim
 controller = PIDController(
-    k_p=0.2,
+    k_p=0.19,
     k_i=0,
-    k_d=0.04,
+    k_d=0.055,
     min_output=-1,
     max_output=1
 )
 
-COLOR_QUEUE = (BLUE, RED, GREEN)
-color_index = 0
-
+COLOR_PRIORITY = (GREEN, RED, BLUE)
 ########################################################################################
 # Functions
 ########################################################################################
@@ -128,6 +126,10 @@ color_index = 0
 
 def crop_floor(image: NDArray) -> NDArray:
     return rc_utils.crop(image, (image.shape[0] // 2, 0), (image.shape[0], image.shape[1]))
+
+def get_contour(image: NDArray, color) -> Optional[NDArray]:
+    contours = rc_utils.find_contours(image, color[0], color[1])
+    return rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
 def update_contour():
     """
@@ -155,17 +157,10 @@ def update_contour():
         # The contour
         contour = None
 
-        # If color index isn't at the end, check for occurance of new color
-        if color_index < len(COLOR_QUEUE) - 1:
-            contours = rc_utils.find_contours(image, COLOR_QUEUE[color_index+1][0], COLOR_QUEUE[color_index+1][1])
-            contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
-
-        if contour is not None:
-            color_index += 1
-            print("switching color index!!!!!")
-        else:
-            contours = rc_utils.find_contours(image, COLOR_QUEUE[color_index][0], COLOR_QUEUE[color_index][1])
-            contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        for color in COLOR_PRIORITY:
+            contour = get_contour(image, color) # ); my precious := operator
+            if contour is not None:
+                break
 
         if contour is not None:
             # Calculate contour information
@@ -183,17 +178,6 @@ def update_contour():
         # Display the image to the screen
         rc.display.show_color_image(image)
         
-        # for color in PRIORITY:
-        #     new_contours = rc_utils.find_contours(image, color[0], color[1])
-
-        #     # Set global screen width
-        #     screen_width = image.shape[1]
-
-        #     # Select the largest contour
-        #     contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
-        #     # print(f"area: {cv.contourArea(contour)}")
-        #     contour_list.append(contour_list)
-                
 
 def start():
     """
@@ -249,8 +233,8 @@ def update():
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = 0.3 * (forwardSpeed - backSpeed)
-    speed = 1 # testing
+    speed = 0.36 * (forwardSpeed - backSpeed)
+    # speed = 1 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
