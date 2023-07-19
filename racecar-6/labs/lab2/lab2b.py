@@ -189,9 +189,6 @@ def update():
     After start() is run, this function is run every frame until the back button
     is pressed
     """
-    global speed
-    global angle
-    global cur_state
 
     update_contour()
 
