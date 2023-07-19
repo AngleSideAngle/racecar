@@ -12,6 +12,7 @@ Lab 2A - Color Image Line Following
 
 from enum import Enum
 import sys
+from typing import List
 import cv2 as cv
 import numpy as np
 from nptyping import NDArray
@@ -35,7 +36,7 @@ MIN_CONTOUR_AREA = 50
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))  # The HSV range for the color blue
-# BLUE = ((90, 50, 50), (120, 255, 255))
+# BLUE = ((90, 50, 50), (120, 255, 255)) # blue in sim??
 RED = ((160, 84-65, 194-20), (179, 154+65, 255))
 GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
@@ -101,9 +102,6 @@ color_idx_to_tuple = {
 #         rc_utils.draw_contour(image, contour)
 #         rc_utils.draw_circle(image, contour_center)
 #         rc.display.show_color_image(image)
-# # TODO (challenge 1): add HSV ranges for other colors
-PRIORITY = (RED, BLUE, GREEN)
-
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -119,39 +117,14 @@ controller = PIDController(
     max_output=1
 )
 
+COLOR_QUEUE = (BLUE, RED, GREEN)
+color_index = 0
+
 ########################################################################################
 # Functions
 ########################################################################################
 
 # from the lab2 notebook
-def remap_range(
-    val: float,
-    old_min: float,
-    old_max: float,
-    new_min: float,
-    new_max: float,
-) -> float:
-    """
-    Remaps a value from one range to another range.
-
-    Args:
-        val: A number form the old range to be rescaled.
-        old_min: The inclusive 'lower' bound of the old range.
-        old_max: The inclusive 'upper' bound of the old range.
-        new_min: The inclusive 'lower' bound of the new range.
-        new_max: The inclusive 'upper' bound of the new range.
-
-    Note:
-        min need not be less than max; flipping the direction will cause the sign of
-        the mapping to flip.  val does not have to be between old_min and old_max.
-    """
-
-    diff = old_max - old_min
-    percent = val / diff
-    new_val = percent * (new_max - new_min)
-    new_val += new_min
-
-    return new_val
 
 def crop_floor(image: NDArray) -> NDArray:
     return rc_utils.crop(image, (image.shape[0] // 2, 0), (image.shape[0], image.shape[1]))
@@ -164,6 +137,7 @@ def update_contour():
     global contour_center
     global contour_area
     global screen_width
+    global color_index
 
     image = rc.camera.get_color_image()
 
@@ -171,55 +145,55 @@ def update_contour():
         contour_center = None
         contour_area = 0
     else:
+
         # Crop the image to the floor directly in front of the car
         image = crop_floor(image)
-        contour_list = []
-        for color in PRIORITY:
-            # Find all of the current color's contours
-            contours = rc_utils.find_contours(image, color[0], color[1])
 
-            # Set global screen width
-            screen_width = image.shape[1]
+        # Set global screen width
+        screen_width = image.shape[1]
 
-            # Select the largest contour
+        # The contour
+        contour = None
+
+        # If color index isn't at the end, check for occurance of new color
+        if color_index < len(COLOR_QUEUE) - 1:
+            contours = rc_utils.find_contours(image, COLOR_QUEUE[color_index+1][0], COLOR_QUEUE[color_index+1][1])
             contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+        if contour is not None:
+            color_index += 1
+            print("switching color index!!!!!")
+        else:
+            contours = rc_utils.find_contours(image, COLOR_QUEUE[color_index][0], COLOR_QUEUE[color_index][1])
+            contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+
+        if contour is not None:
+            # Calculate contour information
+            contour_center = rc_utils.get_contour_center(contour)
+            contour_area = rc_utils.get_contour_area(contour)
+
+            # Draw contour onto the image
+            rc_utils.draw_contour(image, contour)
+            rc_utils.draw_circle(image, contour_center)
             
-            contour_list.append(contour_list)
-            if contour is None:
-                continue
-            else:
-                print(f"area: {cv.contourArea(contour)}")
-                contour_center = rc_utils.get_contour_center(contour)
-                contour_area = rc_utils.get_contour_area(contour)
-                # Draw contour onto the image
-                rc_utils.draw_contour(image, contour)
-                rc_utils.draw_circle(image, contour_center)
-                rc.display.show_color_image(image)
-                return
+        else:
+            contour_center = None
+            contour_area = 0
+
+        # Display the image to the screen
+        rc.display.show_color_image(image)
         
-        for color in PRIORITY:
-            new_contours = rc_utils.find_contours(image, color[0], color[1])
+        # for color in PRIORITY:
+        #     new_contours = rc_utils.find_contours(image, color[0], color[1])
 
-            # Set global screen width
-            screen_width = image.shape[1]
+        #     # Set global screen width
+        #     screen_width = image.shape[1]
 
-            # Select the largest contour
-            contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
-            # print(f"area: {cv.contourArea(contour)}")
-            contour_list.append(contour_list)
-            if contour is None:
-                continue
-            else:
-                new_contour_center = rc_utils.get_contour_center(contour)
-                #contour_area = rc_utils.get_contour_area(contour)
-                # Draw contour onto the image
-                rc_utils.draw_contour(image, contour)
-                rc_utils.draw_circle(image, new_contour_center)
-                rc.display.show_color_image(image)
+        #     # Select the largest contour
+        #     contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
+        #     # print(f"area: {cv.contourArea(contour)}")
+        #     contour_list.append(contour_list)
                 
-        contour_center = None
-        contour_area = 0
-
 
 def start():
     """
@@ -264,19 +238,19 @@ def update():
     # Choose an angle based on contour_center
     # If we could not find a contour, keep the previous angle
     if contour_center is not None:
-        angular_offset = remap_range(contour_center[1], 0, screen_width, -1, 1)
+        angular_offset = rc_utils.remap_range(contour_center[1], 0, screen_width, -1, 1)
         angle = controller.calculate(position=0, setpoint=angular_offset)
-        print(f"angular offset: {angular_offset}")
-        print(controller)
+        # print(f"angular offset: {angular_offset}")
+        # print(controller)
     else:
         angle = 1 if angle > 0 else -1
-    print(angle)
+    # print(angle)
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
     speed = 0.3 * (forwardSpeed - backSpeed)
-    # speed = 1 # testaing
+    speed = 1 # testing
 
     rc.drive.set_speed_angle(speed, angle)
 
