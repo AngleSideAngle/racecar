@@ -66,7 +66,7 @@ def get_closest_depth() -> Optional[float]:
     top_left_inclusive = (0, 0)
     bottom_right_exclusive = (depth_image.shape[0] * 2 // 3, depth_image.shape[1])
 
-    cropped_image = rc_utils.crop(depth_image, top_left_inclusive, bottom_right_exclusive)
+    depth_image = rc_utils.crop(depth_image, top_left_inclusive, bottom_right_exclusive)
 
     # Find closest pixel
     closest_pixel = rc_utils.get_closest_pixel(depth_image)
