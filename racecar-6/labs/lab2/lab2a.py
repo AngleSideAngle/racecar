@@ -61,48 +61,69 @@ HSV_idx = 0
 threshold_incremement = 5
 
 
+# Thresholding MUST use color_idx_to_tuple[idx] now for each color because creating the dict makes a copy
 color_idx_to_tuple = {
     0 : BLUE,
     1 : RED,
     2 : GREEN
 }
 
-# def update_based_on_taps():
-#     global color_idx
-#     global HSV_idx
+def update_based_on_taps():
+    global color_idx
+    global HSV_idx
+    if rc.controller.was_pressed(rc.controller.Button.A):
+        print(f"changing color to {color_num_to_str[color_idx]}...")
+        color_idx = (color_idx + 1) % 3 
 
-#     if rc.controller.was_pressed(rc.controller.Button.A):
-#         color_idx = (color_idx + 1) % 3 
-#     if rc.controller.was_pressed(rc.controller.Button.B):
-#         HSV_idx = (HSV_idx + 1) % 3 
-#     if rc.controller.was_pressed(rc.controller.Button.Y):
-#         color_idx_to_tuple[color_idx][1][HSV_idx] = max(
-#                                 color_idx_to_tuple[color_idx][1][HSV_idx] + threshold_incremement, 255)
-#     if rc.controller.was_pressed(rc.controller.Button.X):
-#         color_idx_to_tuple[color_idx][1][HSV_idx] = min(
-#                                 color_idx_to_tuple[color_idx][1][HSV_idx] - threshold_incremement, 0)
+    if rc.controller.was_pressed(rc.controller.Button.B):
+        print(f"changing HSV to {hsv_num_to_str[HSV_idx]}...")
+        HSV_idx = (HSV_idx + 1) % 3 
+
+    if rc.controller.was_pressed(rc.controller.Button.Y):
+        
+        color_idx_to_tuple[color_idx] = list(list (x) for x in color_idx_to_tuple[color_idx])
+        color_idx_to_tuple[color_idx][1][HSV_idx] = min(
+                                color_idx_to_tuple[color_idx][1][HSV_idx] + threshold_incremement, 255)
+        print(f"increasing {color_num_to_str[color_idx]}'s {hsv_num_to_str[HSV_idx]} to {color_idx_to_tuple[color_idx][1][HSV_idx]}")
+        color_idx_to_tuple[color_idx] = tuple(tuple (x) for x in color_idx_to_tuple[color_idx])
+
+        
+                
+    if rc.controller.was_pressed(rc.controller.Button.X):
+        color_idx_to_tuple[color_idx] = list(list (x) for x in color_idx_to_tuple[color_idx])
+        color_idx_to_tuple[color_idx][0][HSV_idx] = max(
+                                color_idx_to_tuple[color_idx][1][HSV_idx] - threshold_incremement, 0)
+        print(f"decreasing {color_num_to_str[color_idx]}'s {hsv_num_to_str[HSV_idx]} to {color_idx_to_tuple[color_idx][1][HSV_idx]}")
+        color_idx_to_tuple[color_idx] = tuple(tuple (x) for x in color_idx_to_tuple[color_idx])
+
+        
+
     
-#     draw_image(rc.camera.get_color_image(), color_idx_to_tuple[color_idx])
+    draw_image(rc.camera.get_color_image(), color_idx_to_tuple[color_idx])
 
-#     print(f"{color_num_to_str[color_idx]} : {color_idx_to_tuple[color_idx]}")
-#     print(f"HSV_idx : {HSV_idx}, color_idx : {color_idx}")
+    print(f"{color_num_to_str[color_idx]} : {color_idx_to_tuple[color_idx]}")
+    print(f"HSV_idx : {HSV_idx}, color_idx : {color_idx}")
 
-# def draw_image(image, tuple):
-#     contours = rc_utils.find_contours(image, tuple[0], tuple[1])
+def draw_image(image, tuple):
+    contours = rc_utils.find_contours(image, tuple[0], tuple[1])
 
-#     # Select the largest contour
-#     contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+    # Select the largest contour
+    contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
 
-#     if contour is None:
-#         rc.display.show_color_image(image)
-#     else:
-#         contour_center = rc_utils.get_contour_center(contour)
-#         contour_area = rc_utils.get_contour_area(contour)
+    # if contour is None:
+    #     rc.display.show_color_image(image)
+    # else:
+    #     contour_center = rc_utils.get_contour_center(contour)
+    #     contour_area = rc_utils.get_contour_area(contour)
 
-#         # Draw contour onto the image
-#         rc_utils.draw_contour(image, contour)
-#         rc_utils.draw_circle(image, contour_center)
-#         rc.display.show_color_image(image)
+    #     # Draw contour onto the image
+    #     rc_utils.draw_contour(image, contour)
+    #     rc_utils.draw_circle(image, contour_center)
+    #     rc.
+    #     rc.display.show_color_image(image)
+# # TODO (challenge 1): add HSV ranges for other colors
+PRIORITY = (RED, BLUE, GREEN)
+
 
 # >> Variables
 speed = 0.0  # The current speed of the car
@@ -179,6 +200,32 @@ def update_contour():
         # Display the image to the screen
         rc.display.show_color_image(image)
         
+<<<<<<< Updated upstream
+=======
+        for color in PRIORITY:
+            new_contours = rc_utils.find_contours(image, color[0], color[1])
+
+            # Set global screen width
+            screen_width = image.shape[1]
+
+            # Select the largest contour
+            contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
+            # print(f"area: {cv.contourArea(contour)}")
+            contour_list.append(contour_list)
+            if contour is None:
+                continue
+            else:
+                new_contour_center = rc_utils.get_contour_center(contour)
+                #contour_area = rc_utils.get_contour_area(contour)
+                # Draw contour onto the image
+                rc_utils.draw_contour(image, contour)
+                rc_utils.draw_circle(image, new_contour_center)
+                rc.display.show_color_image(image)
+        
+        contour_center = None
+        contour_area = 0
+
+>>>>>>> Stashed changes
 
 def start():
     """
@@ -229,20 +276,29 @@ def update():
         # print(controller)
     else:
         angle = 1 if angle > 0 else -1
+<<<<<<< Updated upstream
     # print(angle)
+=======
+    #print(angle)
+>>>>>>> Stashed changes
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
+<<<<<<< Updated upstream
     speed = 0.36 * (forwardSpeed - backSpeed)
     # speed = 1 # testing
+=======
+    #speed = 0.3 * (forwardSpeed - backSpeed)
+    speed = 0.25 # testaing
+>>>>>>> Stashed changes
 
-    rc.drive.set_speed_angle(speed, angle)
+    #rc.drive.set_speed_angle(speed, angle)
 
     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
-    # update_based_on_taps()
+    
     # Print the center and area of the largest contour when B is held down
     if rc.controller.is_down(rc.controller.Button.B):
         if contour_center is None:
@@ -257,6 +313,8 @@ def update_slow():
     than update().  By default, update_slow() is run once per second
     """
     # Print a line of ascii text denoting the contour area and x-position
+    update_based_on_taps()
+    
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
         print("X" * 10 + " (No image) " + "X" * 10)
