@@ -15,6 +15,9 @@ import cv2 as cv
 import numpy as np
 from enum import Enum
 from pid import PIDController
+from typing import *
+from nptyping import NDArray
+from collections import namedtuple
 
 sys.path.insert(0, "../../library")
 import racecar_core
@@ -43,6 +46,10 @@ class Color(Enum, tuple[tuple[int, int, int], tuple[int, int, int]]):
     # Both
     RED = ((0, 0, 0), (0, 0, 0))
 
+class ContourData(NamedTuple):
+    color: Color
+    center: tuple[float, float]
+    area: float
 
 ########################################################################################
 # Global variables
@@ -59,8 +66,8 @@ COLOR_PRIORITY = (Color.GREEN, )
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 
-contour_center = None  # The (pixel row, pixel column) of contour
-contour_area = 0  # The area of contour
+# contour_center = None  # The (pixel row, pixel column) of contour
+# contour_area = 0  # The area of contour
 screen_width = 0 # the width of the screen, in px, because it changes between real and sim
 controller = PIDController(
     k_p=0.19,
@@ -75,61 +82,75 @@ controller = PIDController(
 # Functions
 ########################################################################################
 
-
-def crop_floor(image: NDArray) -> NDArray:
-    return rc_utils.crop(image, (image.shape[0] // 2, 0), (image.shape[0], image.shape[1]))
-
-def get_contour(image: NDArray, color) -> Optional[NDArray]:
-    contours = rc_utils.find_contours(image, color[0], color[1])
-    return rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
-
-def update_contour():
+def get_contour() -> Optional[ContourData]:
     """
     Finds contours in the current color image and uses them to update contour_center
     and contour_area
     """
-    global contour_center
-    global contour_area
+
     global screen_width
-    global color_index
 
     image = rc.camera.get_color_image()
 
     if image is None:
-        contour_center = None
-        contour_area = 0
-    else:
+        return None
 
-        # Crop the image to the floor directly in front of the car
-        image = crop_floor(image)
+    # Crop the image to the floor directly in front of the car
+    image = rc_utils.crop(image, (image.shape[0] // 2, 0), (image.shape[0], image.shape[1]))
 
-        # Set global screen width
-        screen_width = image.shape[1]
+    # Set global screen width
+    screen_width = image.shape[1]
 
-        # The contour
-        contour = None
+    # The contour
+    contour = None
+    color = None
 
-        for color in COLOR_PRIORITY:
-            contour = get_contour(image, color) # ); my precious := operator
-            if contour is not None:
-                break
-
+    for c in COLOR_PRIORITY:
+        contours = rc_utils.find_contours(image, c.value[0], c.value[1])
+        contour = rc_utils.get_largest_contour(contours, MIN_CONTOUR_AREA)
+        color = c
         if contour is not None:
-            # Calculate contour information
-            contour_center = rc_utils.get_contour_center(contour)
-            contour_area = rc_utils.get_contour_area(contour)
+            break
 
-            # Draw contour onto the image
-            rc_utils.draw_contour(image, contour)
-            rc_utils.draw_circle(image, contour_center)
-            
-        else:
-            contour_center = None
-            contour_area = 0
+    # Draw contour onto the image
+    if contour is not None:
+        rc_utils.draw_contour(image, contour)
+        rc_utils.draw_circle(image, contour_center)
 
-        # Display the image to the screen
-        rc.display.show_color_image(image)
+    # Display the image to the screen
+    rc.display.show_color_image(image)
 
+    # Calculate and return contour information
+    if contour is not None:
+        contour_center = rc_utils.get_contour_center(contour)
+        contour_area = rc_utils.get_contour_area(contour)
+        return ContourData(color, contour_center, contour_area) # type: ignore
+
+    return None
+
+def get_closest_depth() -> Optional[float]:
+    """
+    Finds the closest depth value
+    """
+
+    depth_image = rc.camera.get_depth_image()
+
+    if depth_image is None:
+        return None
+
+    # Crop the image
+    top_left_inclusive = (0, 0)
+    bottom_right_exclusive = (depth_image.shape[0] * 2 // 3, depth_image.shape[1])
+
+    depth_image = rc_utils.crop(depth_image, top_left_inclusive, bottom_right_exclusive)
+
+    # Find closest pixel
+    closest_pixel = rc_utils.get_closest_pixel(depth_image)
+
+    # Telemetry
+    rc.display.show_depth_image(depth_image, points=[closest_pixel])
+
+    return depth_image[closest_pixel[0], closest_pixel[1]]
 
 def start():
     """
@@ -152,9 +173,9 @@ def update():
     After start() is run, this function is run every frame until the back button
     is pressed
     """
-    # Initialize variables
-    speed = 1
-    angle = 1
+    
+    contour = get_contour()
+    depth = get_closest_depth()
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
