@@ -171,14 +171,14 @@ def update_contour():
             # Draw contour onto the image
             rc_utils.draw_contour(image, contour)
             rc_utils.draw_circle(image, contour_center)
-            
+
         else:
             contour_center = None
             contour_area = 0
 
         # Display the image to the screen
         rc.display.show_color_image(image)
-        
+
 
 def start():
     """
