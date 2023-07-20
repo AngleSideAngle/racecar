@@ -40,6 +40,7 @@ class State(Enum):
     SWERVE_LEFT = 2
     SWERVE_RIGHT = 3
     PARKED = 4
+    TESTING = 5
 
 
 class Color(Enum):
@@ -60,10 +61,10 @@ class Color(Enum):
 
     # Cone colors
     ORANGE = ((30-20, 50, 150), (30+20, 255, 255))
-    PURPLE = ((0, 0, 0), (0, 0, 0))
+    #PURPLE = ((0, 0, 0), (0, 0, 0))
 
     # Both
-    RED = ((0, 0, 0), (0, 0, 0))
+    PURPLE = ((160, 180, 20), (179, 255, 255))
 
 
 class ContourData(NamedTuple):
@@ -227,12 +228,13 @@ def start():
 global queue 
 queue = []
 
+
 def update():
     """
     After start() is run, this function is run every frame until the back button
     is pressed
     """
-
+    
     
 
     global speed
@@ -310,27 +312,50 @@ def update():
 
 
                 
-                orange_pixels_closer_than_60_cm = cv2.inRange(crop_top_two_thirds(depth_image),
+                pixels_closer_than_90_cm = cv2.inRange(crop_top_two_thirds(depth_image),
                                             2,
-                                            90)
+                                            60)
+                orange_pixels_closer_than_90_cm = cv2.bitwise_and(pixels_closer_than_90_cm, 
+                                                                  top_of_frame_orange)
+                global queue
+                transitioning_state = False
                 try: 
-                    mask = cv2.bitwise_and(top_of_frame_color, orange_pixels_closer_than_60_cm)
+                    mask = cv2.bitwise_and(top_of_frame_color, orange_pixels_closer_than_90_cm)
                     contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
                     if len(contours) != 0:
                         largest_contour = rc_utils.get_largest_contour(contours)
                         if rc_utils.get_contour_area(largest_contour) > 1000:
                             current_state = State.SWERVE_RIGHT
-                            global queue
-                            queue.append([0.7,0.4,1])
+
+                            queue.append([0.55,0.4,1])
+                            transitioning_state = True
                             # queue.append([1.8,0.5,-1])
                             # queue.append([0.5,0.2,1])
+
                         
                 except:
                     pass
+                
+                if not transitioning_state: 
+                    purple_pixels_closer_than_90_cm = cv2.bitwise_and(pixels_closer_than_90_cm, 
+                                                                    top_of_frame_purple)
+                    try:
+                        mask = cv2.bitwise_and(top_of_frame_color, purple_pixels_closer_than_90_cm)
+                        contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+                        if len(contours) != 0:
+                            largest_contour = rc_utils.get_largest_contour(contours)
+                            if rc_utils.get_contour_area(largest_contour) > 1000:
+                                current_state = State.SWERVE_LEFT
+                              
+                                queue.append([1.1,0.4,-1])
+                                # queue.append([1.8,0.5,-1])
+                                # queue.append([0.5,0.2,1])
+                    except:
+                        pass
 
     if current_state == State.SWERVE_RIGHT:
       
-
+        
  
         if len(queue) != 0:
             queue[0][0] -= rc.get_delta_time()
@@ -353,16 +378,53 @@ def update():
  
                 purple_contours =  cv2.findContours(close_purple, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
                 if len(purple) != 0:
-                    if rc_utils.get_largest_contour(purple_contours) is not None:
+                    largest_cont = rc_utils.get_largest_contour(purple_contours)
+                    if largest_cont is not None:
                         
-                        if rc_utils.get_largest_contour(purple_contours) > 200:
+                        if rc_utils.get_contour_area(largest_cont) > 200:
                             current_state = State.APPROACH
                 else:
                     angle = -1
                 
-            
+    if current_state == State.SWERVE_LEFT:
+      
+        if len(queue) != 0:
+            queue[0][0] -= rc.get_delta_time()
+            command = queue[0]
+            speed = command[1]
+            angle = command[2]
+            if command[0] <= 0:
+                queue.pop(0)
+
+        else:
+        
+            angle = 1
+            depth_image = rc.camera.get_depth_image()
+            if depth_image is not None:
+                orange = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
+                 Color.ORANGE.value[0],Color.ORANGE.value[1])
+                image_thresh_for_closeness = cv2.inRange(depth_image,
+                    2,100)
+                close_orange = cv2.bitwise_and(orange,image_thresh_for_closeness)
  
-            
+                orange_contours =  cv2.findContours(close_orange, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+
+                
+
+                if len(orange) != 0:
+                    largest_cont = rc_utils.get_largest_contour(orange_contours)
+                    if largest_cont is not None:
+                        
+                        if rc_utils.get_contour_area(largest_cont) > 200:
+                            current_state = State.APPROACH
+                else:
+                    angle = 1
+    if current_state == State.TESTING:
+        if image is not None:
+            red = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
+                 Color.RED.value[0],Color.RED.value[1])
+            rc.display.show_color_image(red)
+        
 
 
     # Set initial driving speed and angle
