@@ -29,7 +29,6 @@ from pid import PIDController
 ########################################################################################
 
 rc = racecar_core.create_racecar()
-
 # >> Constants
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 700
@@ -46,6 +45,7 @@ color_num_to_str = {
     1 : "red",
     2 : "green"
 }
+
 
 hsv_num_to_str = { 
     0 : "Hue",
@@ -95,9 +95,6 @@ def update_based_on_taps():
                                 color_idx_to_tuple[color_idx][1][HSV_idx] - threshold_incremement, 0)
         print(f"decreasing {color_num_to_str[color_idx]}'s {hsv_num_to_str[HSV_idx]} to {color_idx_to_tuple[color_idx][1][HSV_idx]}")
         color_idx_to_tuple[color_idx] = tuple(tuple (x) for x in color_idx_to_tuple[color_idx])
-
-        
-
     
     draw_image(rc.camera.get_color_image(), color_idx_to_tuple[color_idx])
 
@@ -234,7 +231,6 @@ def start():
         "    B button = print contour center and area"
     )
 
-
 def update():
     """
     After start() is run, this function is run every frame until the back button
@@ -276,7 +272,6 @@ def update():
         else:
             print("Center:", contour_center, "Area:", contour_area)
 
-
 def update_slow():
     """
     After start() is run, this function is run at a constant rate that is slower
@@ -298,7 +293,6 @@ def update_slow():
             s = ["-"] * 32
             s[int(contour_center[1] / 20)] = "|"
             print("".join(s) + " : area = " + str(contour_area))
-
 
 ########################################################################################
 # DO NOT MODIFY: Register start and update and begin execution
