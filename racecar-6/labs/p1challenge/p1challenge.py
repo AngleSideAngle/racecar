@@ -16,11 +16,14 @@ sys.path.insert(0, "../../library")
 from enum import Enum
 from typing import Callable, NamedTuple, Optional, Tuple
 
+import numpy as np
 import racecar_core
 import racecar_utils as rc_utils
 import numpy as np
 from nptyping import NDArray
 from pid import PIDController
+
+import cv2
 
 ########################################################################################
 # Data
@@ -33,8 +36,10 @@ class State(Enum):
     """
 
     LINE_FOLLOWING = 0
-    CONE_SLALOM = 1
-    PARKED = 2
+    APPROACH = 1 
+    SWERVE_LEFT = 2
+    SWERVE_RIGHT = 3
+    PARKED = 4
 
 
 class Color(Enum):
@@ -43,14 +48,18 @@ class Color(Enum):
     with each variable containing a min and max HSV.
     """
 
+    # Sim colors
+    BLUE =  ((91-20, 106-45, 206-30), (91+20, 255, 255))
+
     # Line colors
     YELLOW = ((30-20, 50, 150), (30+20, 255, 255))
-    # BLUE = ((90, 110, 110), (120, 255, 255))
-    BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
+    #BLUE = ((90, 110, 110), (120, 255, 255))
+
+    # BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
-    ORANGE = ((0, 0, 0), (0, 0, 0))
+    ORANGE = ((30-20, 50, 150), (30+20, 255, 255))
     PURPLE = ((0, 0, 0), (0, 0, 0))
 
     # Both
@@ -61,7 +70,7 @@ class ContourData(NamedTuple):
     """
     Represents important data about a contour.
     """
-
+    contour : NDArray
     color: Color
     center: Tuple[float, float]
     area: float
@@ -95,12 +104,14 @@ screen_width = 0  # the width of the screen, in px, because it changes between r
 # velocity: NDArray[3, np.float32] = np.ndarray((0, 0, 0))
 
 controller = PIDController(
-    k_p=0.175 if IS_REAL else 8.0,
+    k_p=0.075 if IS_REAL else 8.0,
     k_i=0,
     k_d=0.065 if IS_REAL else 0.1,
     min_output=-1,
     max_output=1
 )
+
+
 
 
 ########################################################################################
@@ -165,7 +176,7 @@ def get_contour(
         if contour_center:
             rc_utils.draw_circle(image, contour_center)
 
-        return ContourData(color, contour_center, contour_area)  # type: ignore
+        return ContourData(contour, color, contour_center, contour_area)  # type: ignore
 
     return None
 
@@ -213,6 +224,8 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
+global queue 
+queue = []
 
 def update():
     """
@@ -220,10 +233,12 @@ def update():
     is pressed
     """
 
+    
+
     global speed
     global angle
     global current_state
-
+    
     depth = get_closest_depth()
     image = rc.camera.get_color_image()
 
@@ -238,6 +253,9 @@ def update():
             angle = controller.calculate(position=0, setpoint=angular_offset)
             # print(f"angular offset: {angular_offset}")
             # print(controller)
+        
+            #rc_utils.draw_contour(image, contour.contour)
+            #rc.display.show_color_image(image)
         else:
             angle = 1 if angle > 0 else -1
         # print(angle)
@@ -245,12 +263,107 @@ def update():
         speed = FOLLOWING_SPEED
 
         orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
-
+ 
         if orange_cone is not None:
-            current_state = State.CONE_SLALOM
+            current_state = State.APPROACH
 
-    # Display contour onto the image to the screen
-    rc.display.show_color_image(image)
+    if current_state == State.APPROACH:
+        depth_image = rc.camera.get_depth_image()
+        if depth_image is not None:
+            
+            top_of_frame = crop_top_two_thirds(image)
+            
+            top_of_frame_orange = cv2.inRange(cv2.cvtColor(top_of_frame, cv2.COLOR_BGR2HSV),
+                 Color.ORANGE.value[0],Color.ORANGE.value[1])
+            top_of_frame_purple = cv2.inRange(cv2.cvtColor(top_of_frame, cv2.COLOR_BGR2HSV),
+                 Color.PURPLE.value[0],Color.PURPLE.value[1])
+            
+            top_of_frame_color = cv2.bitwise_or(top_of_frame_orange,top_of_frame_purple)
+            top_of_frame_depth = cv2.inRange(crop_top_two_thirds(depth_image),
+                                            2,
+                                            240)
+            
+            mask = cv2.bitwise_and(top_of_frame_color, top_of_frame_depth)
+
+            #find contours too lazy to find the method
+            
+            contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+            if len(contours) != 0:
+                
+                largest_contour_tracking = rc_utils.get_largest_contour(contours)
+
+                if largest_contour_tracking is not None:
+                    rc_utils.draw_contour(image,largest_contour_tracking)
+                    rc.display.show_color_image(image)
+                    
+
+                    
+                    angular_offset = rc_utils.remap_range(
+                        rc_utils.get_contour_center(largest_contour_tracking)[1],
+                        0, 
+                        screen_width,
+                        -1,
+                        1
+                    )
+            
+                    angle = controller.calculate(position=0, setpoint=angular_offset)
+
+
+                
+                orange_pixels_closer_than_60_cm = cv2.inRange(crop_top_two_thirds(depth_image),
+                                            2,
+                                            90)
+                try: 
+                    mask = cv2.bitwise_and(top_of_frame_color, orange_pixels_closer_than_60_cm)
+                    contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+                    if len(contours) != 0:
+                        largest_contour = rc_utils.get_largest_contour(contours)
+                        if rc_utils.get_contour_area(largest_contour) > 1000:
+                            current_state = State.SWERVE_RIGHT
+                            global queue
+                            queue.append([0.7,0.4,1])
+                            # queue.append([1.8,0.5,-1])
+                            # queue.append([0.5,0.2,1])
+                        
+                except:
+                    pass
+
+    if current_state == State.SWERVE_RIGHT:
+      
+
+ 
+        if len(queue) != 0:
+            queue[0][0] -= rc.get_delta_time()
+            command = queue[0]
+            speed = command[1]
+            angle = command[2]
+            if command[0] <= 0:
+                queue.pop(0)
+
+        else:
+        
+            angle = -1
+            depth_image = rc.camera.get_depth_image()
+            if depth_image is not None:
+                purple = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
+                 Color.PURPLE.value[0],Color.PURPLE.value[1])
+                image_thresh_for_closeness = cv2.inRange(depth_image,
+                    2,100)
+                close_purple = cv2.bitwise_and(purple,image_thresh_for_closeness)
+ 
+                purple_contours =  cv2.findContours(close_purple, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
+                if len(purple) != 0:
+                    if rc_utils.get_largest_contour(purple_contours) is not None:
+                        
+                        if rc_utils.get_largest_contour(purple_contours) > 200:
+                            current_state = State.APPROACH
+                else:
+                    angle = -1
+                
+            
+ 
+            
+
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
