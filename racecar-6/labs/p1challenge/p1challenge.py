@@ -13,9 +13,8 @@ Phase 1 Challenge - Cone Slaloming
 import sys
 
 sys.path.insert(0, "../../library")
-from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional
+from typing import Callable, NamedTuple, Optional, Tuple
 
 import racecar_core
 import racecar_utils as rc_utils
@@ -44,9 +43,9 @@ class Color(Enum):
     """
 
     # Line colors
-    YELLOW = ((24-10, 102-45, 187-30), (25+20, 113+45, 197+40))
-    # BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))
-    BLUE = ((90, 50, 50), (120, 255, 255))
+    YELLOW = ((30-20, 50, 150), (30+20, 255, 255))
+    BLUE = ((90, 110, 110), (120, 255, 255))
+    # BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
@@ -57,14 +56,13 @@ class Color(Enum):
     RED = ((0, 0, 0), (0, 0, 0))
 
 
-@dataclass
-class ContourData:
+class ContourData(NamedTuple):
     """
     Represents important data about a contour.
     """
 
     color: Color
-    center: tuple[float, float]
+    center: Tuple[float, float]
     area: float
 
 ########################################################################################
@@ -78,7 +76,7 @@ rc = racecar_core.create_racecar()
 
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 500
-LINE_COLOR_PRIORITY = (Color.BLUE, Color.GREEN, Color.YELLOW)
+LINE_COLOR_PRIORITY = (Color.GREEN, Color.BLUE, Color.YELLOW)
 
 current_state: State = State.LINE_FOLLOWING
 speed = 0.0  # The current speed of the car
@@ -88,9 +86,9 @@ angle = 0.0  # The current angle of the car's wheels
 # contour_area = 0  # The area of contour
 screen_width = 0  # the width of the screen, in px, because it changes between real and sim
 controller = PIDController(
-    k_p=0.19,
+    k_p=0.175,
     k_i=0,
-    k_d=0.055,
+    k_d=0.065,
     min_output=-1,
     max_output=1
 )
@@ -116,8 +114,8 @@ def crop_top_two_thirds(image: NDArray) -> NDArray:
 
 def get_contour(
     image: NDArray,
-    color_priority: tuple[Color, ...],
-    cropper: Callable[[NDArray], NDArray]
+    color_priority: Tuple[Color, ...],
+    cropper: Callable[[NDArray], NDArray] = lambda x: x
 ) -> Optional[ContourData]:
     """
     Finds contours in the current color image and uses them to update contour_center
@@ -156,7 +154,6 @@ def get_contour(
         rc_utils.draw_contour(image, contour)
 
         if contour_center:
-            print("drawn circle")
             rc_utils.draw_circle(image, contour_center)
 
         return ContourData(color, contour_center, contour_area)  # type: ignore
@@ -236,7 +233,7 @@ def update():
             angle = 1 if angle > 0 else -1
         # print(angle)
 
-        speed = 0.325
+        speed = 0.17
 
         orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
 
