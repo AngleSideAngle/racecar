@@ -32,14 +32,14 @@ rc = racecar_core.create_racecar()
 
 # >> Constants
 # The smallest contour we will recognize as a valid contour
-MIN_CONTOUR_AREA = 60
+MIN_CONTOUR_AREA = 700
 
 # Colors, stored as a pair (hsv_min, hsv_max)
 # BLUE = ((91-20, 106-45, 206-30), (91+20, 110+45, 208+40))  # The HSV range for the color blue
 BLUE = ((90, 50, 50), (120, 255, 255))
-RED = ((160-20, 111-45, 182-40), (179, 157+45, 255))
-GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
-YELLOW = ((24-10, 102-45, 187-30), (25+20, 113+45, 197+40))
+RED = ((160-20, 111, 182), (179, 255, 255))
+GREEN = ((81-40,44,190), (81+5,255, 255))
+YELLOW = ((30-20, 20, 190-30), (30+20, 113+45, 255))
 
 color_num_to_str = { 
     0 : "blue",
@@ -181,6 +181,11 @@ def update_contour():
 
         for color in COLOR_PRIORITY:
             contour = get_contour(image, color) # ); my precious := operator
+            if contour is None:
+                continue
+
+            if rc_utils.get_contour_area(contour) < MIN_CONTOUR_AREA:
+                continue
             if contour is not None:
                 break
 
@@ -200,32 +205,6 @@ def update_contour():
         # Display the image to the screen
         rc.display.show_color_image(image)
         
-<<<<<<< Updated upstream
-=======
-        for color in PRIORITY:
-            new_contours = rc_utils.find_contours(image, color[0], color[1])
-
-            # Set global screen width
-            screen_width = image.shape[1]
-
-            # Select the largest contour
-            contour = rc_utils.get_largest_contour(new_contours, MIN_CONTOUR_AREA)
-            # print(f"area: {cv.contourArea(contour)}")
-            contour_list.append(contour_list)
-            if contour is None:
-                continue
-            else:
-                new_contour_center = rc_utils.get_contour_center(contour)
-                #contour_area = rc_utils.get_contour_area(contour)
-                # Draw contour onto the image
-                rc_utils.draw_contour(image, contour)
-                rc_utils.draw_circle(image, new_contour_center)
-                rc.display.show_color_image(image)
-        
-        contour_center = None
-        contour_area = 0
-
->>>>>>> Stashed changes
 
 def start():
     """
@@ -276,24 +255,15 @@ def update():
         # print(controller)
     else:
         angle = 1 if angle > 0 else -1
-<<<<<<< Updated upstream
     # print(angle)
-=======
-    #print(angle)
->>>>>>> Stashed changes
 
     # Use the triggers to control the car's speed
     forwardSpeed = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
     backSpeed = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-<<<<<<< Updated upstream
-    speed = 0.36 * (forwardSpeed - backSpeed)
+    speed = 0.29 * (forwardSpeed - backSpeed)
     # speed = 1 # testing
-=======
-    #speed = 0.3 * (forwardSpeed - backSpeed)
-    speed = 0.25 # testaing
->>>>>>> Stashed changes
 
-    #rc.drive.set_speed_angle(speed, angle)
+    rc.drive.set_speed_angle(speed, angle)
 
     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
@@ -313,7 +283,7 @@ def update_slow():
     than update().  By default, update_slow() is run once per second
     """
     # Print a line of ascii text denoting the contour area and x-position
-    update_based_on_taps()
+    # update_based_on_taps()
     
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
