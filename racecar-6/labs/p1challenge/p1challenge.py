@@ -18,6 +18,7 @@ from typing import Callable, NamedTuple, Optional, Tuple
 
 import racecar_core
 import racecar_utils as rc_utils
+import numpy as np
 from nptyping import NDArray
 from pid import PIDController
 
@@ -44,8 +45,8 @@ class Color(Enum):
 
     # Line colors
     YELLOW = ((30-20, 50, 150), (30+20, 255, 255))
-    BLUE = ((90, 110, 110), (120, 255, 255))
-    # BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
+    # BLUE = ((90, 110, 110), (120, 255, 255))
+    BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
@@ -74,9 +75,14 @@ rc = racecar_core.create_racecar()
 
 # Add any global variables here
 
+IS_SIMULATION = "-s" in sys.argv
+IS_REAL = not IS_SIMULATION
+
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 500
 LINE_COLOR_PRIORITY = (Color.GREEN, Color.BLUE, Color.YELLOW)
+
+FOLLOWING_SPEED = 0.17 if IS_REAL else 1
 
 current_state: State = State.LINE_FOLLOWING
 speed = 0.0  # The current speed of the car
@@ -85,10 +91,13 @@ angle = 0.0  # The current angle of the car's wheels
 # contour_center = None  # The (pixel row, pixel column) of contour
 # contour_area = 0  # The area of contour
 screen_width = 0  # the width of the screen, in px, because it changes between real and sim
+
+# velocity: NDArray[3, np.float32] = np.ndarray((0, 0, 0))
+
 controller = PIDController(
-    k_p=0.175,
+    k_p=0.175 if IS_REAL else 8.0,
     k_i=0,
-    k_d=0.065,
+    k_d=0.065 if IS_REAL else 0.1,
     min_output=-1,
     max_output=1
 )
@@ -233,7 +242,7 @@ def update():
             angle = 1 if angle > 0 else -1
         # print(angle)
 
-        speed = 0.17
+        speed = FOLLOWING_SPEED
 
         orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
 
