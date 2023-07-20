@@ -54,7 +54,7 @@ class Color(Enum):
     PURPLE = ((0, 0, 0), (0, 0, 0))
 
     # Both
-    RED = ((0, 0, 0), (0, 0, 0))
+    RED = ((150-20, 85-45, 190-30), (179, 255, 255))
 
 
 class ContourData(NamedTuple):
@@ -80,9 +80,14 @@ IS_REAL = not IS_SIMULATION
 
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 500
-LINE_COLOR_PRIORITY = (Color.GREEN, Color.BLUE, Color.YELLOW)
+LINE_COLOR_PRIORITY = (Color.RED, Color.BLUE, Color.YELLOW)
 
-FOLLOWING_SPEED = 0.17 if IS_REAL else 1
+FOLLOWING_SPEED = 0.16 if IS_REAL else 1
+
+GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
+
+weighted_average: NDArray = np.array((0.0, 0.0, 0.0))
+ROUNDING_WEIGHT: float = 0.1
 
 current_state: State = State.LINE_FOLLOWING
 speed = 0.0  # The current speed of the car
@@ -92,10 +97,10 @@ angle = 0.0  # The current angle of the car's wheels
 # contour_area = 0  # The area of contour
 screen_width = 0  # the width of the screen, in px, because it changes between real and sim
 
-# velocity: NDArray[3, np.float32] = np.ndarray((0, 0, 0))
+velocity = np.array((0.0, 0.0, 0.0)) # type: ignore
 
 controller = PIDController(
-    k_p=0.175 if IS_REAL else 8.0,
+    k_p=0.17 if IS_REAL else 8.0,
     k_i=0,
     k_d=0.065 if IS_REAL else 0.1,
     min_output=-1,
@@ -192,6 +197,20 @@ def get_closest_depth() -> Optional[float]:
     return depth_image[closest_pixel[0], closest_pixel[1]]
 
 
+def update_odometry():
+    """
+    Updates simple odometry based on imu
+    """
+
+    global velocity
+
+    accel = (weighted_average + ROUNDING_WEIGHT * (rc.physics.get_linear_acceleration() - GRAVITY)) / (1 + ROUNDING_WEIGHT)
+
+    # print(accel)
+
+    velocity += accel * rc.get_delta_time()
+
+
 def start():
     """
     This function is run once every time the start button is pressed
@@ -226,6 +245,8 @@ def update():
 
     depth = get_closest_depth()
     image = rc.camera.get_color_image()
+    update_odometry()
+    print(velocity)
 
     if current_state == State.LINE_FOLLOWING:
         contour = get_contour(image, LINE_COLOR_PRIORITY, crop_floor)
@@ -238,8 +259,8 @@ def update():
             angle = controller.calculate(position=0, setpoint=angular_offset)
             # print(f"angular offset: {angular_offset}")
             # print(controller)
-        else:
-            angle = 1 if angle > 0 else -1
+        # else:
+        #     angle = 1 if angle > 0 else -1
         # print(angle)
 
         speed = FOLLOWING_SPEED
@@ -249,8 +270,8 @@ def update():
         if orange_cone is not None:
             current_state = State.CONE_SLALOM
 
-    # Display contour onto the image to the screen
-    rc.display.show_color_image(image)
+    # # Display contour onto the image to the screen
+    # rc.display.show_color_image(image)
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
