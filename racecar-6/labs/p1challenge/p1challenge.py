@@ -55,7 +55,7 @@ class Color(Enum):
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
-    ORANGE = ((0, 109, 220), (8+20, 255, 255))
+    ORANGE = ((0, 209, 220), (8+20, 255, 255))
     PURPLE = ((147-20, 128-45, 120), (160, 255, 255))
     # Both
     RED = ((150-20, 85-45, 190-30), (179, 255, 255))
@@ -87,7 +87,7 @@ IS_REAL = not IS_SIMULATION
 MIN_CONTOUR_AREA = 500
 LINE_COLOR_PRIORITY = (Color.RED, Color.BLUE, Color.YELLOW)
 
-FOLLOWING_SPEED = 0.16 if IS_REAL else 1
+FOLLOWING_SPEED = 0.18 if IS_REAL else 1
 
 GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
 
@@ -287,9 +287,13 @@ def transition(next_state: State) -> None:
         print("UNDEFINED TRANSITION FUNCTION")
     state_to_times_entered[next_state] += 1
 
+def double_size(image : NDArray) -> NDArray:
+    return image.repeat(2, axis=0).repeat(2,axis=1)
+
 speed_mod = 0
 start_time = 0
-RAMP_TIME = 1.5
+RAMP_TIME = 2.5
+look_for_orange = False
 
 def update():
     """
@@ -308,7 +312,8 @@ def update():
     depth = get_closest_depth()
     image = rc.camera.get_color_image()
     update_odometry()
-    print(position)
+    # print(position)
+    print(current_state)
 
     if current_state == State.LINE_FOLLOWING:
         contour = get_contour(image, LINE_COLOR_PRIORITY, crop_floor)
@@ -321,20 +326,26 @@ def update():
 
             if contour.color == Color.RED and speed_mod == 0.0:
                 start_time = time.perf_counter()
-                speed_mod = 0.4
+                speed_mod = 0.04
 
         if time.perf_counter() > start_time + RAMP_TIME:
-            speed_mod = -0.2
+            speed_mod = -0.02
 
         speed = FOLLOWING_SPEED + speed_mod
+        print(FOLLOWING_SPEED, speed_mod)
 
-        orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
+        if contour.color == Color.BLUE:
+            look_for_orange = True
+        if look_for_orange:
+            orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
 
-        if orange_cone is not None:
-            current_state = State.APPROACH
+            if orange_cone is not None:
+                current_state = State.APPROACH
 
     if current_state == State.APPROACH:
+        speed = FOLLOWING_SPEED
         depth_image = rc.camera.get_depth_image()
+        depth_image = double_size(depth_image)
         if depth_image is not None:
 
             top_of_frame = crop_top_two_thirds(image)
@@ -348,7 +359,8 @@ def update():
             top_of_frame_depth = cv2.inRange(crop_top_two_thirds(depth_image),
                                             2,
                                             240)
-
+                                            
+         
             mask = cv2.bitwise_and(top_of_frame_color, top_of_frame_depth)
 
             # find contours too lazy to find the method
@@ -426,6 +438,7 @@ def update():
 
             angle = -1
             depth_image = rc.camera.get_depth_image()
+            depth_image = double_size(depth_image)
             if depth_image is not None:
                 purple = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                  Color.PURPLE.value[0],Color.PURPLE.value[1])
@@ -454,6 +467,7 @@ def update():
         else:
             angle = 1
             depth_image = rc.camera.get_depth_image()
+            depth_image = double_size(depth_image)
             if depth_image is not None:
                 orange = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                  Color.ORANGE.value[0],Color.ORANGE.value[1])
@@ -477,6 +491,7 @@ def update():
                  Color.RED.value[0],Color.RED.value[1])
             rc.display.show_color_image(red)
         
+    print(speed)
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
