@@ -105,7 +105,7 @@ screen_width = 0  # the width of the screen, in px, because it changes between r
 # velocity: NDArray[3, np.float32] = np.ndarray((0, 0, 0))
 
 controller = PIDController(
-    k_p=0.075 if IS_REAL else 8.0,
+    k_p=0.175 if IS_REAL else 8.0,
     k_i=0,
     k_d=0.065 if IS_REAL else 0.1,
     min_output=-1,
@@ -228,6 +228,26 @@ def start():
 global queue 
 queue = []
 
+global state_to_times_entered
+
+state_to_times_entered = {}
+for e in State:
+    state_to_times_entered[e] = 0
+
+
+def transition(next_state : State):
+    global queue
+    
+    if next_state == State.SWERVE_LEFT:
+        queue.append([1.1,0.4,-1])
+    if next_state == State.SWERVE_RIGHT:
+        if state_to_times_entered[State.SWERVE_RIGHT] == 0:
+            queue.append([0.55,0.4,1])
+        else:
+            queue.append([1.1,0.4,1])
+    else:
+        print("UNDEFINED TRANSITION FUNCTION")
+    state_to_times_entered[next_state] += 1
 
 def update():
     """
@@ -326,9 +346,8 @@ def update():
                         largest_contour = rc_utils.get_largest_contour(contours)
                         if rc_utils.get_contour_area(largest_contour) > 1000:
                             current_state = State.SWERVE_RIGHT
-
-                            queue.append([0.55,0.4,1])
-                            transitioning_state = True
+                            transition(State.SWERVE_RIGHT)
+                            
                             # queue.append([1.8,0.5,-1])
                             # queue.append([0.5,0.2,1])
 
@@ -347,15 +366,13 @@ def update():
                             if rc_utils.get_contour_area(largest_contour) > 1000:
                                 current_state = State.SWERVE_LEFT
                               
-                                queue.append([1.1,0.4,-1])
+                                transition(State.SWERVE_LEFT)
                                 # queue.append([1.8,0.5,-1])
                                 # queue.append([0.5,0.2,1])
                     except:
                         pass
 
     if current_state == State.SWERVE_RIGHT:
-      
-        
  
         if len(queue) != 0:
             queue[0][0] -= rc.get_delta_time()
