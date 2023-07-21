@@ -56,11 +56,11 @@ class Color(Enum):
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
-    ORANGE = ((0, 0, 0), (0, 0, 0))
-    PURPLE = ((160, 180, 20), (179, 255, 255))
-
+    ORANGE = ((8-20, 109, 220), (8+20, 255, 255))
+    PURPLE = ((147-20, 128-45, 120), (160, 255, 255))
     # Both
     RED = ((150-20, 85-45, 190-30), (179, 255, 255))
+    #BLUE = ((90, 110, 110), (120, 255, 255))
 
 
 class ContourData(NamedTuple):
@@ -114,6 +114,12 @@ controller = PIDController(
 )
 
 
+
+global see_next_cone_to_turn_depth
+global see_next_cone_to_turn_area
+
+see_next_cone_to_turn_depth = 100
+see_next_cone_to_turn_area = 200
 ########################################################################################
 # Functions
 ########################################################################################
@@ -270,7 +276,9 @@ def update():
     global speed
     global angle
     global current_state
-
+    global see_next_cone_to_turn_depth
+    global see_next_cone_to_turn_area
+    
     depth = get_closest_depth()
     image = rc.camera.get_color_image()
     update_odometry()
@@ -400,7 +408,7 @@ def update():
                 purple = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                  Color.PURPLE.value[0],Color.PURPLE.value[1])
                 image_thresh_for_closeness = cv2.inRange(depth_image,
-                    2,100)
+                    2,see_next_cone_to_turn_depth)
                 close_purple = cv2.bitwise_and(purple,image_thresh_for_closeness)
  
                 purple_contours =  cv2.findContours(close_purple, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -408,7 +416,7 @@ def update():
                     largest_cont = rc_utils.get_largest_contour(purple_contours)
                     if largest_cont is not None:
                         
-                        if rc_utils.get_contour_area(largest_cont) > 200:
+                        if rc_utils.get_contour_area(largest_cont) > see_next_cone_to_turn_area:
                             current_state = State.APPROACH
 
     if current_state == State.SWERVE_LEFT:
@@ -422,14 +430,13 @@ def update():
                 queue.pop(0)
 
         else:
-
             angle = 1
             depth_image = rc.camera.get_depth_image()
             if depth_image is not None:
                 orange = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
                  Color.ORANGE.value[0],Color.ORANGE.value[1])
                 image_thresh_for_closeness = cv2.inRange(depth_image,
-                    2,100)
+                    2,see_next_cone_to_turn_depth)
                 close_orange = cv2.bitwise_and(orange,image_thresh_for_closeness)
 
                 orange_contours =  cv2.findContours(close_orange, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
@@ -438,7 +445,7 @@ def update():
                     largest_cont = rc_utils.get_largest_contour(orange_contours)
                     if largest_cont is not None:
                         
-                        if rc_utils.get_contour_area(largest_cont) > 200:
+                        if rc_utils.get_contour_area(largest_cont) > see_next_cone_to_turn_area:
                             current_state = State.APPROACH
 
 
