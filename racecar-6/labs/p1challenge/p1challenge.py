@@ -85,7 +85,7 @@ IS_REAL = not IS_SIMULATION
 
 # The smallest contour we will recognize as a valid contour
 MIN_CONTOUR_AREA = 500
-LINE_COLOR_PRIORITY = (Color.RED, Color.BLUE, Color.YELLOW)
+LINE_COLOR_PRIORITY = (Color.BLUE, Color.YELLOW)
 
 FOLLOWING_SPEED = 0.18 if IS_REAL else 1
 
@@ -289,7 +289,7 @@ def transition(next_state: State) -> None:
 
 def double_size(image : NDArray) -> NDArray:
     return image.repeat(2, axis=0).repeat(2,axis=1)
-
+global look_for_orange
 speed_mod = 0
 start_time = 0
 RAMP_TIME = 2.5
@@ -308,7 +308,8 @@ def update():
     global see_next_cone_to_turn_area
     global start_time
     global speed_mod
-    
+    global look_for_orange
+
     depth = get_closest_depth()
     image = rc.camera.get_color_image()
     update_odometry()
@@ -328,14 +329,17 @@ def update():
                 start_time = time.perf_counter()
                 speed_mod = 0.04
 
+            if contour.color == Color.BLUE:
+                look_for_orange = True
+
         if time.perf_counter() > start_time + RAMP_TIME:
             speed_mod = -0.02
 
         speed = FOLLOWING_SPEED + speed_mod
         print(FOLLOWING_SPEED, speed_mod)
 
-        if contour.color == Color.BLUE:
-            look_for_orange = True
+        
+
         if look_for_orange:
             orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
 
