@@ -28,6 +28,7 @@ rc = racecar_core.create_racecar()
 # The (min, max) degrees to consider when measuring forward and rear distances
 FRONT_WINDOW = (-10, 10)
 REAR_WINDOW = (170, 190)
+THRESHOLD = 60
 
 ########################################################################################
 # Functions
@@ -61,15 +62,20 @@ def update():
     After start() is run, this function is run every frame until the back button
     is pressed
     """
-    # Use the triggers to control the car's speed
-    rt = rc.controller.get_trigger(rc.controller.Trigger.RIGHT)
-    lt = rc.controller.get_trigger(rc.controller.Trigger.LEFT)
-    speed = rt - lt
 
     # Calculate the distance in front of and behind the car
     scan = rc.lidar.get_samples()
     _, forward_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
     _, back_dist = rc_utils.get_lidar_closest_point(scan, REAR_WINDOW)
+
+    # Use the triggers to control the car's speed
+    rt = rc.controller.get_trigger(rc.controller.Trigger.RIGHT) if forward_dist > THRESHOLD else 0
+    lt = rc.controller.get_trigger(rc.controller.Trigger.LEFT) if back_dist > THRESHOLD else 0
+    speed = rt - lt
+    print(f"forward dist: {forward_dist}")
+    print(f"back dist: {back_dist}")
+    print(f"forward: {rt}; + left: {lt}; total: {speed}")
+
 
     # TODO (warmup): Prevent the car from hitting things in front or behind it.
     # Allow the user to override safety stop by holding the left or right bumper.
