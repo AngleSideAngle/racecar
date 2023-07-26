@@ -66,7 +66,7 @@ def update():
     _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
     # right_dist /= 100 # convert to meters
     angle = -controller.calculate(position=right_dist)
-    speed = 0.17
+    speed = 0.15
 
     _, forward_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
     _, back_dist = rc_utils.get_lidar_closest_point(scan, REAR_WINDOW)
@@ -85,7 +85,7 @@ def update():
     # print(f"forward dist: {forward_dist}")
     # print(f"back dist: {back_dist}")
     # print(f" total: {speed}")
-    print(f"right-dist: {right_dist} angle: {angle}")
+    print(f"right-dist: {right_dist} angle: {angle} speed: {speed}")
 
     rc.drive.set_speed_angle(speed, angle)
 
