@@ -15,11 +15,12 @@ def dist(p1: Tuple[float, float], p2: Tuple[float, float]):
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
 def dcc(scan_points: NDArray, kernel: NDArray = K_1, d: float = 5):
-    assert len(kernel) % 2 == 0
+    assert len(kernel) % 2 == 1
 
     distances = [dist(scan_points[i], scan_points[i+1]) for i in range(len(scan_points) - 1)]
-    
-    sigma = 
+
+    # calculate stdev
+    sigma = np.std(scan_points)
 
     # half the kernel
     m = len(kernel) // 2
@@ -33,8 +34,8 @@ def dcc(scan_points: NDArray, kernel: NDArray = K_1, d: float = 5):
         integral = 0
         for j in range(-m, m + 1):
             integral += distances[i+j] * kernel[j+m]
-        if integral > d * sigma: # b * sigma ?? typo for d = 5
-            clusters.append(distances[last:i])
+        if integral > d * sigma: # typo for d = 5, meant b
+            clusters.append(scan_points[last:i])
             last = i
 
     return clusters

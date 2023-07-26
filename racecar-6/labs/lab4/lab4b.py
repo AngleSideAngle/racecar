@@ -29,10 +29,10 @@ rc = racecar_core.create_racecar()
 FRONT_WINDOW = (-10, 10)
 REAR_WINDOW = (170, 190)
 RIGHT_WINDOW = (75, 105)
-THRESHOLD = 40
+THRESHOLD = 60
 right_dis = 0
 controller = PIDController(
-    k_p=0.0125,
+    k_p=0.015,
     k_i=0,
     k_d=0,
     setpoint=THRESHOLD,
@@ -66,7 +66,7 @@ def update():
     _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
     # right_dist /= 100 # convert to meters
     angle = -controller.calculate(position=right_dist)
-    speed = 0.18
+    speed = 0.17
 
     _, forward_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
     _, back_dist = rc_utils.get_lidar_closest_point(scan, REAR_WINDOW)
