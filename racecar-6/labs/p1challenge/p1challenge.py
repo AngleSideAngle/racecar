@@ -35,12 +35,8 @@ class State(Enum):
     """
 
     LINE_FOLLOWING = 0
-    APPROACH = 1
-    SWERVE_LEFT = 2
-    SWERVE_RIGHT = 3
+    CONE_SLALOM = 2
     PARKED = 4
-    TESTING = 5
-
 
 class Color(Enum):
     """
@@ -91,7 +87,7 @@ FOLLOWING_SPEED = 0.14 if IS_REAL else 1
 
 # GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
 
-current_state: State = State.LINE_FOLLOWING
+current_state: State = State.CONE_SLALOM
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 
@@ -122,13 +118,6 @@ accel_controller = PIDController(
     min_output=-1
 )
 
-
-
-global see_next_cone_to_turn_depth
-global see_next_cone_to_turn_area
-
-see_next_cone_to_turn_depth = 100
-see_next_cone_to_turn_area = 50
 ########################################################################################
 # Functions
 ########################################################################################
@@ -217,12 +206,6 @@ def get_closest_depth() -> Optional[float]:
 
     return depth_image[closest_pixel[0], closest_pixel[1]]
 
-
-def rotate(state: NDArray, rotation: NDArray):
-    yaw = rotation[0]
-    pitch = rotation[1]
-    roll = rotation[2]
-
 ACCEL_AVG_LEN = 7
 moving_avg = [np.array((0, 0, 0)) for _ in range(7)]
 
@@ -239,11 +222,11 @@ def update_odometry():
     angular_velocity = rc.physics.get_angular_velocity()
     angular_position += rc.physics.get_angular_velocity() * rc.get_delta_time()
 
-    acceleration = sum(moving_avg) / len(moving_avg) - GRAVITY
-    print(acceleration)
+    acceleration = sum(moving_avg) / len(moving_avg)
+    # print(acceleration)
     velocity += acceleration * rc.get_delta_time()
     position += velocity * rc.get_delta_time()
-    # print(position)
+    print(angular_velocity)
 
 
 def start():
@@ -267,35 +250,7 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
-queue = []
-
-global state_to_times_entered
-
-state_to_times_entered = {}
-for e in State:
-    state_to_times_entered[e] = 0
-
-
-def transition(next_state: State) -> None:
-    global queue
-
-    if next_state == State.SWERVE_LEFT:
-        queue.append([1.2,0.16,-0.5])
-    if next_state == State.SWERVE_RIGHT:
-        queue.append([1.2,0.16,0.5])
-    else:
-        print("UNDEFINED TRANSITION FUNCTION")
-    state_to_times_entered[next_state] += 1
-
-def double_size(image : NDArray) -> NDArray:
-    return image.repeat(2, axis=0).repeat(2,axis=1)
-
-start_time = 0
-START_TIME_DIFF = 0.4
-START_SPEED = 0.3
-is_started = False
-
-look_for_orange = False
+cone_priority = (Color.ORANGE, Color.RED, Color.PURPLE)
 
 def update():
     """
@@ -306,20 +261,11 @@ def update():
     global speed
     global angle
     global current_state
-    global see_next_cone_to_turn_depth
-    global see_next_cone_to_turn_area
-    global start_time
-    global speed_mod
-    global look_for_orange
 
     # depth = get_closest_depth()
     image = rc.camera.get_color_image()
-    update_odometry()
-    # print(position)
+    # update_odometry()
     print(current_state)
-
-    if not is_started:
-        start_time = time.perf_counter()
 
     if current_state == State.LINE_FOLLOWING:
         contour = get_contour(image, LINE_COLOR_PRIORITY, crop_floor)
@@ -331,179 +277,29 @@ def update():
             angular_offset = rc_utils.remap_range(contour.center[1], 0, screen_width, -1, 1)
             angle = angle_controller.calculate(position=0, setpoint=angular_offset)
 
-            if contour.color == Color.BLUE:
-                look_for_orange = True
+        speed = FOLLOWING_SPEED
+
+    if current_state == State.CONE_SLALOM:
+        cone = get_contour(image, cone_priority, crop_top_two_thirds)
+        red = get_contour(image, (Color.RED, ), crop_top_two_thirds)
+
+        if red is not None:
+            current_state = State.PARKED
+            return
+
+        if cone is not None:
+            offset = 75 * (-1 if cone.color == Color.PURPLE else 1)
+            print(cone.color)
+            print(offset)
+            angular_offset = rc_utils.remap_range(cone.center[1] + offset, 0, screen_width, -1, 1)
+            angle = angle_controller.calculate(position=0, setpoint=angular_offset)
 
         speed = FOLLOWING_SPEED
 
-        if time.perf_counter() > start_time + START_TIME_DIFF:
-            speed = START_SPEED
 
-        if look_for_orange:
-            orange_cone = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
-
-            if orange_cone is not None:
-                current_state = State.APPROACH
-
-    if current_state == State.APPROACH:
-        speed = FOLLOWING_SPEED
-        depth_image = rc.camera.get_depth_image()
-        depth_image = double_size(depth_image)
-        if depth_image is not None:
-
-            top_of_frame = crop_top_two_thirds(image)
-
-            top_of_frame_orange = cv2.inRange(cv2.cvtColor(top_of_frame, cv2.COLOR_BGR2HSV),
-                 Color.ORANGE.value[0],Color.ORANGE.value[1])
-            top_of_frame_purple = cv2.inRange(cv2.cvtColor(top_of_frame, cv2.COLOR_BGR2HSV),
-                 Color.PURPLE.value[0],Color.PURPLE.value[1])
-
-            top_of_frame_color = cv2.bitwise_or(top_of_frame_orange,top_of_frame_purple)
-       
-                                            
-         
-            mask = top_of_frame_color
-
-            # find contours too lazy to find the method
-
-            contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-            if len(contours) != 0:
-
-                largest_contour_tracking = rc_utils.get_largest_contour(contours)
-
-                if largest_contour_tracking is not None:
-                    rc_utils.draw_contour(image,largest_contour_tracking)
-                    rc.display.show_color_image(image)
-
-                    angular_offset = rc_utils.remap_range(
-                        rc_utils.get_contour_center(largest_contour_tracking)[1],
-                        0, 
-                        screen_width,
-                        -1,
-                        1
-                    )
-            
-                    angle = angle_controller.calculate(position=0, setpoint=angular_offset)
-
-
-                
-                pixels_closer_than_90_cm = cv2.inRange(crop_top_two_thirds(depth_image),
-                                            2,
-                                            60)
-                orange_pixels_closer_than_90_cm = top_of_frame_orange
-                global queue
-                transitioning_state = False
-                try: 
-                    mask = top_of_frame_orange
-                    contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-                    if len(contours) != 0:
-                        largest_contour = rc_utils.get_largest_contour(contours)
-                        print(rc_utils.get_contour_area(largest_contour))
-                        if rc_utils.get_contour_area(largest_contour) > 1000:
-                            current_state = State.SWERVE_RIGHT
-                            transition(State.SWERVE_RIGHT)
-                            transitioning_state = True
-                            # queue.append([1.8,0.5,-1])
-                            # queue.append([0.5,0.2,1])
-                except:
-                    print('there was an error')
-                    pass
-                
-                if not transitioning_state: 
-                    purple_pixels_closer_than_90_cm = cv2.bitwise_and(pixels_closer_than_90_cm, 
-                                                                    top_of_frame_purple)
-                    try:
-                        mask =top_of_frame_purple
-                        contours = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-                        if len(contours) != 0:
-                            largest_contour = rc_utils.get_largest_contour(contours)
-                            if rc_utils.get_contour_area(largest_contour) > 1000:
-                                current_state = State.SWERVE_LEFT
-
-                                transition(State.SWERVE_LEFT)
-                                # queue.append([1.8,0.5,-1])
-                                # queue.append([0.5,0.2,1])
-                    except:
-                        pass
-
-    if current_state == State.SWERVE_RIGHT:
-
-        red = get_contour(image, (Color.RED, ))
-        if red is not None:
-            current_state = State.PARKED
-
-        if len(queue) != 0:
-            print("turning to avoid")
-            queue[0][0] -= rc.get_delta_time()
-            command = queue[0]
-            speed = command[1]
-            angle = command[2]
-            if command[0] <= 0:
-                queue.pop(0)
-
-        else:
-            print("turning to return")
-            angle = -1
-            depth_image = rc.camera.get_depth_image()
-            depth_image = double_size(depth_image)
-            if depth_image is not None:
-                purple = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
-                 Color.PURPLE.value[0],Color.PURPLE.value[1])
-                image_thresh_for_closeness = cv2.inRange(depth_image,
-                    2,see_next_cone_to_turn_depth)
-                close_purple = purple
-
-                purple_contours =  cv2.findContours(close_purple, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-                if len(purple) != 0:
-                    largest_cont = rc_utils.get_largest_contour(purple_contours)
-                    if largest_cont is not None:
-                        print(rc_utils.get_contour_area(largest_cont))
-                        if rc_utils.get_contour_area(largest_cont) > see_next_cone_to_turn_area:
-                            current_state = State.APPROACH
-
-    if current_state == State.SWERVE_LEFT:
-        red = get_contour(image, (Color.RED, ))
-        if red is not None:
-            current_state = State.PARKED
-
-        if len(queue) != 0:
-            print("turning to avoid")
-            queue[0][0] -= rc.get_delta_time()
-            command = queue[0]
-            speed = command[1]
-            angle = command[2]
-            if command[0] <= 0:
-                queue.pop(0)
-
-        else:
-            print("turning to return")
-            angle = 1
-            depth_image = rc.camera.get_depth_image()
-            depth_image = double_size(depth_image)
-            if depth_image is not None:
-                orange = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
-                 Color.ORANGE.value[0],Color.ORANGE.value[1])
-                image_thresh_for_closeness = cv2.inRange(depth_image,
-                    2,see_next_cone_to_turn_depth)
-                close_orange = orange
-
-                orange_contours =  cv2.findContours(close_orange, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)[0]
-
-                if len(orange) != 0:
-                    largest_cont = rc_utils.get_largest_contour(orange_contours)
-                    if largest_cont is not None:
-                        
-                        if rc_utils.get_contour_area(largest_cont) > see_next_cone_to_turn_area:
-                            current_state = State.APPROACH
-
-
-    # if current_state == State.TESTING:
-    #     if image is not None:
-    #         red = cv2.inRange(cv2.cvtColor(image, cv2.COLOR_BGR2HSV),
-    #              Color.RED.value[0],Color.RED.value[1])
-    #         rc.display.show_color_image(red)
-        
-    print(speed)
+    if current_state == State.PARKED:
+        speed = 0.0
+        angle = 0.0
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
