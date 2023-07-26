@@ -25,17 +25,17 @@ from pid import PIDController
 rc = racecar_core.create_racecar()
 
 # Add any global variables here
-angle = 0
+# angle = 0
 FRONT_WINDOW = (-10, 10)
 REAR_WINDOW = (170, 190)
-RIGHT_WINDOW = (80, 100)
-THRESHOLD = 80
+RIGHT_WINDOW = (75, 105)
+THRESHOLD = 40
 right_dis = 0
 controller = PIDController(
-    setpoint= THRESHOLD+10
-    k_p=0.19,
+    k_p=0.0125,
     k_i=0,
-    k_d=0.055,
+    k_d=0,
+    setpoint=THRESHOLD,
     min_output=-1,
     max_output=1
 )
@@ -63,27 +63,29 @@ def update():
     """
     # TODO: Follow the wall to the right of the car without hitting anything.
     scan = rc.lidar.get_samples()
-    right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
-    angle = controller.calculate(position=right_dist)
-    speed = 0.15
+    _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
+    # right_dist /= 100 # convert to meters
+    angle = -controller.calculate(position=right_dist)
+    speed = 0.18
 
     _, forward_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
     _, back_dist = rc_utils.get_lidar_closest_point(scan, REAR_WINDOW)
 
     # Use the triggers to control the car's speed
-    if forward_dist > THRESHOLD:
-        speed = 0.15
-    else:
-        speed = 0
+    # if forward_dist > THRESHOLD:
+    #     speed = 0.2
+    # else:
+    #     speed = 0
 
-    if back_dist > THRESHOLD:
-        speed = 0.15
-    else:
-        speed = 0
+    # if back_dist > THRESHOLD:
+    #     speed = 0.2
+    # else:
+    #     speed = 0
     
-    print(f"forward dist: {forward_dist}")
-    print(f"back dist: {back_dist}")
-    print(f" total: {speed}")
+    # print(f"forward dist: {forward_dist}")
+    # print(f"back dist: {back_dist}")
+    # print(f" total: {speed}")
+    print(f"right-dist: {right_dist} angle: {angle}")
 
     rc.drive.set_speed_angle(speed, angle)
 
