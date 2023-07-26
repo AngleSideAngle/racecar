@@ -89,7 +89,7 @@ LINE_COLOR_PRIORITY = (Color.BLUE, Color.YELLOW)
 
 FOLLOWING_SPEED = 0.14 if IS_REAL else 1
 
-GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
+# GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
 
 current_state: State = State.LINE_FOLLOWING
 speed = 0.0  # The current speed of the car
@@ -240,10 +240,10 @@ def update_odometry():
     angular_position += rc.physics.get_angular_velocity() * rc.get_delta_time()
 
     acceleration = sum(moving_avg) / len(moving_avg) - GRAVITY
-    # print(acceleration)
+    print(acceleration)
     velocity += acceleration * rc.get_delta_time()
     position += velocity * rc.get_delta_time()
-    print(position)
+    # print(position)
 
 
 def start():

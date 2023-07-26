@@ -9,15 +9,21 @@ import numpy as np
 from nptyping import NDArray
 
 K_1 = np.array((-3, -3, 5, -3, -3))
-K_2 = [-1, -2, -3, 5, -3, -2, -1]
+K_2 = np.array((-1, -2, -3, 5, -3, -2, -1))
 
 def dist(p1: Tuple[float, float], p2: Tuple[float, float]):
     return math.sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
+def to_cartesian(polar: Tuple[float, float]):
+    return (polar[0] * math.cos(polar[1]), polar[0] * math.sin(polar[1]))
+
+def lidar_to_rad(index: int) -> float:
+    return index / 2.0 * math.pi / 180.0
+
 def dcc(scan_points: NDArray, kernel: NDArray = K_1, d: float = 5):
     assert len(kernel) % 2 == 1
 
-    distances = [dist(scan_points[i], scan_points[i+1]) for i in range(len(scan_points) - 1)]
+    distances = [dist(to_cartesian((lidar_to_rad(i), scan_points[i])), to_cartesian((lidar_to_rad(i), scan_points[i+1]))) for i in range(len(scan_points) - 1)]
 
     # calculate stdev
     sigma = np.std(scan_points)
@@ -33,10 +39,12 @@ def dcc(scan_points: NDArray, kernel: NDArray = K_1, d: float = 5):
     for i in range(len(distances)):
         integral = 0
         for j in range(-m, m + 1):
-            integral += distances[i+j] * kernel[j+m]
+            if 0 <= i+j < len(distances):
+                integral += distances[i+j] * kernel[j+m]
         if integral > d * sigma: # typo for d = 5, meant b
             clusters.append(scan_points[last:i])
             last = i
+    
 
     return clusters
 

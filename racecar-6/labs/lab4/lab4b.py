@@ -20,22 +20,22 @@ import racecar_utils as rc_utils
 from pid import PIDController
 ########################################################################################
 # Global variables
-########################################################################################
+#######################################################################################
 
 rc = racecar_core.create_racecar()
 
 # Add any global variables here
 # angle = 0
+OFFSET = 7
 FRONT_WINDOW = (-10, 10)
 REAR_WINDOW = (170, 190)
-RIGHT_WINDOW = (75, 105)
-THRESHOLD = 60
-right_dis = 0
+RIGHT_WINDOW = (90 - OFFSET, 90)
+LEFT_WINDOW = (270, 270 + OFFSET)
 controller = PIDController(
-    k_p=0.015,
-    k_i=0,
-    k_d=0,
-    setpoint=THRESHOLD,
+    k_p=0.006,
+    k_i=0.0,
+    k_d=0.0001,
+    setpoint=0,
     min_output=-1,
     max_output=1
 )
@@ -58,18 +58,20 @@ def start():
 
 def update():
     """
-    After start() is run, this function is run every frame until the back button
+    After start() is run, this function is run every frame until the back buttron
     is pressed
     """
-    # TODO: Follow the wall to the right of the car without hitting anything.
+
     scan = rc.lidar.get_samples()
-    _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
-    # right_dist /= 100 # convert to meters
-    angle = -controller.calculate(position=right_dist)
-    speed = 0.17
 
     _, forward_dist = rc_utils.get_lidar_closest_point(scan, FRONT_WINDOW)
     _, back_dist = rc_utils.get_lidar_closest_point(scan, REAR_WINDOW)
+    _, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
+    _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
+    
+    angle = controller.calculate(position=(left_dist - right_dist))
+    speed = 0.17
+
 
     # Use the triggers to control the car's speed
     # if forward_dist > THRESHOLD:
@@ -85,7 +87,7 @@ def update():
     # print(f"forward dist: {forward_dist}")
     # print(f"back dist: {back_dist}")
     # print(f" total: {speed}")
-    print(f"right-dist: {right_dist} angle: {angle}")
+    print(f"left_dist: {left_dist}, right_dist: {right_dist}, angle: {angle}")
 
     rc.drive.set_speed_angle(speed, angle)
 
