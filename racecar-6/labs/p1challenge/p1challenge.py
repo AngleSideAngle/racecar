@@ -22,7 +22,7 @@ import numpy as np
 import racecar_core
 import racecar_utils as rc_utils
 from nptyping import NDArray
-from control import PIDController
+from group_6.control import PIDController, RateLimiter
 
 ########################################################################################
 # Data
@@ -47,11 +47,11 @@ class Color(Enum):
     # Line colors
     YELLOW = ((30-20, 50, 150), (30+20, 255, 255))
     # BLUE = ((90, 110, 110), (120, 255, 255))
-    BLUE = ((91-20, 106-45, 206-30), (91+20, 255, 255))
+    BLUE = ((91-20, 120-45, 206-30), (91+20, 255, 255))
     GREEN = ((56-30, 66-10, 179-60), (61+30, 100+30, 173+40))
 
     # Cone colors
-    ORANGE = ((0, 209, 220), (8+20, 255, 255))
+    ORANGE = ((4, 135, 150), (16, 255, 255))
     PURPLE = ((147-20, 128-45, 120), (160, 255, 255))
     # Both
     RED = ((150-20, 85-45, 190-30), (179, 255, 255))
@@ -90,6 +90,7 @@ FOLLOWING_SPEED = 0.14 if IS_REAL else 0.5
 current_state: State = State.CONE_SLALOM
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
+angle_limiter = RateLimiter(0.1) # A filter that can be used by states to smooth angle control
 
 # contour_center = None  # The (pixel row, pixel column) of contour
 # contour_area = 0  # The area of contour
@@ -250,8 +251,8 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
-cone_priority = (Color.ORANGE, Color.RED, Color.PURPLE)
-last_cone_color = Color.ORANGE
+# cone_priority = (Color.ORANGE, Color.RED, Color.BLUE, Color.PURPLE)
+current_cone: Color = Color.ORANGE
 
 def update():
     """
@@ -259,9 +260,7 @@ def update():
     is pressed
     """
 
-    global speed
-    global angle
-    global current_state
+    global speed, angle, current_state, current_cone
 
     # depth = get_closest_depth()
     image = rc.camera.get_color_image()
@@ -281,20 +280,42 @@ def update():
         speed = FOLLOWING_SPEED
 
     if current_state == State.CONE_SLALOM:
-        cone = get_contour(image, cone_priority, crop_top_two_thirds)
+        orange = get_contour(image, (Color.ORANGE, ), crop_top_two_thirds)
+        purple = get_contour(image, (Color.PURPLE, ), crop_floor)
         red = get_contour(image, (Color.RED, ), crop_top_two_thirds)
+
+        cone = None
+
+        if orange is not None:
+            rc_utils.draw_contour(image, orange.contour)
+            cone = orange
+
+        if purple is not None:
+            rc_utils.draw_contour(image, purple.contour)
+            cone = purple
+
+        if purple is not None and orange is not None:
+            cone = orange if orange.area > purple.area else purple
 
         # if red is not None:
         #     current_state = State.PARKED
         #     return
 
         if cone is not None:
-            offset = cone.area / 5 * (-1 if cone.color == Color.PURPLE else 1)
+            current_cone = cone.color
+
+            color_offset = 1 * (-1 if cone.color == Color.PURPLE else 1)
             print(cone.color)
-            print(offset)
-            angular_offset = rc_utils.remap_range(cone.center[1] + offset, 0, screen_width, -1, 1)
-            angle = angle_controller.calculate(position=0, setpoint=angular_offset)
+
+            cone_offset = min(cone.center[1], 0) if cone.color == Color.PURPLE else max(cone.center[1], 0)
+
+            angular_offset = rc_utils.remap_range(cone_offset, 0, screen_width, -1, 1)
+            angle = angle_controller.calculate(position=0, setpoint=angular_offset+color_offset)
             print(f"going to {cone.color}")
+
+        else:
+            # angle = angle_controller.calculate(0.5 * (1 if current_cone == Color.PURPLE else -1))
+            angle = 0.5 * (1 if current_cone == Color.PURPLE else -1)
 
 
         speed = FOLLOWING_SPEED
@@ -303,6 +324,9 @@ def update():
     if current_state == State.PARKED:
         speed = 0.0
         angle = 0.0
+
+    # Display the image to the screen
+    rc.display.show_color_image(image)
 
     # Set initial driving speed and angle
     rc.drive.set_speed_angle(speed, angle)
