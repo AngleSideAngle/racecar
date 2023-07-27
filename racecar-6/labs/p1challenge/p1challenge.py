@@ -22,7 +22,7 @@ import numpy as np
 import racecar_core
 import racecar_utils as rc_utils
 from nptyping import NDArray
-from pid import PIDController
+from control import PIDController
 
 ########################################################################################
 # Data
@@ -83,7 +83,7 @@ IS_REAL = not IS_SIMULATION
 MIN_CONTOUR_AREA = 500
 LINE_COLOR_PRIORITY = (Color.BLUE, Color.YELLOW)
 
-FOLLOWING_SPEED = 0.14 if IS_REAL else 1
+FOLLOWING_SPEED = 0.14 if IS_REAL else 0.5
 
 # GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
 
@@ -251,6 +251,7 @@ def start():
     print(">> Phase 1 Challenge: Cone Slaloming")
 
 cone_priority = (Color.ORANGE, Color.RED, Color.PURPLE)
+last_cone_color = Color.ORANGE
 
 def update():
     """
@@ -283,16 +284,18 @@ def update():
         cone = get_contour(image, cone_priority, crop_top_two_thirds)
         red = get_contour(image, (Color.RED, ), crop_top_two_thirds)
 
-        if red is not None:
-            current_state = State.PARKED
-            return
+        # if red is not None:
+        #     current_state = State.PARKED
+        #     return
 
         if cone is not None:
-            offset = 75 * (-1 if cone.color == Color.PURPLE else 1)
+            offset = cone.area / 5 * (-1 if cone.color == Color.PURPLE else 1)
             print(cone.color)
             print(offset)
             angular_offset = rc_utils.remap_range(cone.center[1] + offset, 0, screen_width, -1, 1)
             angle = angle_controller.calculate(position=0, setpoint=angular_offset)
+            print(f"going to {cone.color}")
+
 
         speed = FOLLOWING_SPEED
 

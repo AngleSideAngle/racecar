@@ -10,19 +10,19 @@ Lab 2A - Color Image Line Following
 # Imports
 ########################################################################################
 
-from enum import Enum
 import sys
+from enum import Enum
 from typing import *
+
 import cv2 as cv
+import cv_functions
 import numpy as np
 from nptyping import NDArray
-
-import cv_functions
+from control import PIDController
 
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
-from pid import PIDController
 
 ########################################################################################
 # Global variables

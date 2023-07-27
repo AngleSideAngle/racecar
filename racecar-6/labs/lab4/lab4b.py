@@ -17,7 +17,7 @@ import numpy as np
 sys.path.insert(0, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
-from pid import PIDController
+from control import PIDController
 ########################################################################################
 # Global variables
 #######################################################################################

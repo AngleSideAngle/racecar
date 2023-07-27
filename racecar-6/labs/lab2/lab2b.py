@@ -19,7 +19,7 @@ from nptyping import NDArray
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
-from pid import PIDController
+from control import PIDController
 from enum import IntEnum
 ########################################################################################
 # Global variables
