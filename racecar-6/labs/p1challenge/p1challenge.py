@@ -11,21 +11,18 @@ Phase 1 Challenge - Cone Slaloming
 ########################################################################################
 
 import sys
-import time
 
 sys.path.insert(0, "../../library")
 from enum import Enum
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Optional
 
 import cv2
-import numpy as np
 import racecar_core
 import racecar_utils as rc_utils
-from nptyping import NDArray
 from group_6.control import *
 from group_6.vision import *
 
-    
+
 ########################################################################################
 # State
 ########################################################################################
@@ -45,7 +42,6 @@ class State(Enum):
 # Global variables
 ########################################################################################
 
-
 rc = racecar_core.create_racecar()
 
 # Add any global variables here
@@ -57,25 +53,22 @@ LINE_COLOR_PRIORITY = (Color.BLUE, Color.YELLOW)
 
 FOLLOWING_SPEED = 0.15 if IS_REAL else 0.75
 
-# GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
-
-# lidar
+# wall following
 OFFSET = 7
-
 RIGHT_WINDOW = (90 - OFFSET, 90)
 LEFT_WINDOW = (270, 270 + OFFSET)
+
+# cone slalom
+RIGHT_CONE = Color.ORANGE
+LEFT_CONE = Color.PURPLE
+
+prev_cone: Optional[Color] = None
+target_cone: Color = RIGHT_CONE
 
 current_state: State = State.CONE_SLALOM
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
 angle_limiter = RateLimiter(0.08) # A filter that can be used by states to smooth angle control
-
-position = np.array((0.0, 0.0, 0.0))
-velocity = np.array((0.0, 0.0, 0.0))
-acceleration = np.array((0.0, 0.0, 0.0))
-
-angular_velocity = np.array((0.0, 0.0, 0.0))
-angular_position = np.array((0.0, 0.0, 0.0))
 
 angle_controller = PIDController(
     k_p=0.12 if IS_REAL else 8.0,
@@ -94,40 +87,9 @@ wall_controller = PIDController(
     max_output=1
 )
 
-accel_controller = PIDController(
-    k_p=0.1,
-    k_i=0,
-    k_d=0,
-    max_output=1,
-    min_output=-1
-)
-
 ########################################################################################
 # Functions
 ########################################################################################
-
-ACCEL_AVG_LEN = 7
-moving_avg = [np.array((0, 0, 0)) for _ in range(7)]
-
-def update_odometry():
-    """
-    Updates simple odometry based on imu
-    """
-
-    global moving_avg, position, velocity, acceleration, angular_velocity, angular_position
-
-    moving_avg.pop(0)
-    moving_avg.append(rc.physics.get_linear_acceleration())
-
-    angular_velocity = rc.physics.get_angular_velocity()
-    angular_position += rc.physics.get_angular_velocity() * rc.get_delta_time()
-
-    acceleration = sum(moving_avg) / len(moving_avg)
-    # print(acceleration)
-    velocity += acceleration * rc.get_delta_time()
-    position += velocity * rc.get_delta_time()
-    print(angular_velocity)
-
 
 def start():
     """
@@ -150,12 +112,6 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
-RIGHT_CONE = Color.ORANGE
-LEFT_CONE = Color.PURPLE
-
-prev_cone: Optional[Color] = None
-target_cone: Color = RIGHT_CONE
-
 def update():
     """
     After start() is run, this function is run every frame until the back button
@@ -166,7 +122,6 @@ def update():
 
     # depth = get_closest_depth()
     image = rc.camera.get_color_image()
-    # update_odometry()
     print(current_state)
 
     if current_state == State.LINE_FOLLOWING:
@@ -217,10 +172,9 @@ def update():
         _, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
         _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
 
-        angle = wall_controller.calculate(position=(left_dist - right_dist))
+        angle = wall_controller.calculate(position=left_dist-right_dist)
 
         speed = FOLLOWING_SPEED
-
 
     if current_state == State.PARKED:
         speed = 0.0

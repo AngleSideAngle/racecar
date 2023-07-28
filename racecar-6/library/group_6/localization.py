@@ -14,6 +14,7 @@ Abstract: This article presents two algorithms that extract information from las
 Keywords: Feature extraction; Robot mapping
 """
 
+import time
 import math
 
 from typing import Tuple
@@ -23,6 +24,47 @@ from nptyping import NDArray
 
 K_1 = np.array((-3, -3, 5, -3, -3))
 K_2 = np.array((-1, -2, -3, 5, -3, -2, -1))
+
+
+class IMUOdometry:
+    """
+    Performs dead reckoning via filtering, integrating, and rotatinglinear acceleration and angular
+    velocity
+    """
+
+    # GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
+
+    def __init__(self, moving_avg_len: int = 7) -> None:
+        self.position = np.array((0.0, 0.0, 0.0))
+        self.velocity = np.array((0.0, 0.0, 0.0))
+        self.acceleration = np.array((0.0, 0.0, 0.0))
+
+        self.angular_velocity = np.array((0.0, 0.0, 0.0))
+        self.angular_position = np.array((0.0, 0.0, 0.0))
+
+        self.prev_time = time.perf_counter()
+
+        self.moving_avg = [np.array((0, 0, 0)) for _ in range(moving_avg_len)]
+
+    def update_odometry(self, linear_acceleration: NDArray, angular_velocity: NDArray) -> None:
+        """
+        Updates odometry based on imu data
+        """
+
+        current_time = time.perf_counter()
+        delta_time = current_time - self.prev_time
+        self.prev_time = current_time
+
+        self.angular_velocity = angular_velocity
+        self.angular_position += angular_velocity * delta_time
+
+        self.moving_avg.pop(0)
+        self.moving_avg.append(linear_acceleration)
+
+        self.acceleration = sum(self.moving_avg) / len(self.moving_avg)
+        self.velocity += self.acceleration * delta_time
+        self.position += self.velocity * delta_time
+
 
 def dist(p_1: Tuple[float, float], p_2: Tuple[float, float]):
     """
