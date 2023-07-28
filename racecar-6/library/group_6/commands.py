@@ -1,6 +1,17 @@
+"""
+### *Do Not Use*
+
+Command based programming is a very useful scheduling paradigm, commonly used in FRC.
+See https://docs.wpilib.org/en/stable/docs/software/commandbased/index.html for further details.
+
+This is not a full implementation, but rather a simplified adaptation written by Asa for controlling
+only one mechanism with the scheduler.
+"""
+
 import abc
 import time
 from typing import Callable, Optional
+
 
 class Command(abc.ABC):
 
@@ -35,6 +46,7 @@ class Command(abc.ABC):
     def __add__(self, other):
         return self.and_then(other)
 
+
 class CommandImpl(Command):
 
     def __init__(
@@ -60,7 +72,8 @@ class CommandImpl(Command):
 
     def is_finished(self) -> bool:
         return self.is_finished()
-    
+
+
 class WaitCommand(Command):
 
     def __init__(self, delta_time: float) -> None:
@@ -77,6 +90,7 @@ class WaitCommand(Command):
 
     def is_finished(self) -> bool:
         return time.perf_counter() > self.start_time + self.dt
+
 
 class Sequence(Command):
 
@@ -108,6 +122,7 @@ class Sequence(Command):
     def is_finished(self) -> bool:
         return len(self.commands) < 1
 
+
 class Parallel(Command):
 
     def __init__(self, *commands: Command) -> None:
@@ -135,6 +150,7 @@ class Parallel(Command):
     def is_finished(self) -> bool:
         return True not in self.commands.values()
 
+
 class ParallelRace(Command):
 
     def __init__(self, *commands: Command) -> None:
@@ -157,6 +173,7 @@ class ParallelRace(Command):
 
     def is_finished(self) -> bool:
         return self.finished
+
 
 class Scheduler:
     scheduled: Optional[Command]
@@ -194,6 +211,7 @@ class Scheduler:
         if not self.scheduled and self.default_command:
             self.scheduled = self.default_command
             self.scheduled.initialize()
+
 
 # utility functions
 def once(action: Callable[[], None]) -> Command:

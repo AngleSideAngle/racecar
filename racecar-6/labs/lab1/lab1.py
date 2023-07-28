@@ -73,7 +73,7 @@ def update():
         for _ in range(5):
             queue.append([2,1,0])
             queue.append([1,1,1])
-            queue.append([3,-1,-1])
+            # queue.append([3,-1,-1])
             # queue.append([4,1,0])
          
             # queue.append([2,-1,-1])

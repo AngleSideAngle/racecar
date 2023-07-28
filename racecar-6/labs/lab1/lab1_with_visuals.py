@@ -17,7 +17,7 @@ import numpy as np
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
-import commands
+import group_6.commands as commands
 
 ########################################################################################
 # Global variables

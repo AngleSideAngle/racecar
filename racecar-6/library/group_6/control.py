@@ -108,6 +108,30 @@ class RateLimiter:
         self.prev_time = time.perf_counter()
 
 
+class Debouncer:
+    """
+    Debounces falling signal
+    """
+
+    def __init__(self, baseline: bool, debounce_time: float, starting_value: bool = False) -> None:
+        self.baseline = baseline
+        self.debounce_time = debounce_time
+        self.start_time = time.perf_counter()
+
+    def update(self, value: bool) -> bool:
+        """
+        Updates debouncer
+        """
+
+        if value == self.baseline:
+            self.start_time = time.perf_counter()
+
+        if time.perf_counter() - self.start_time >= self.debounce_time:
+            return value
+
+        return self.baseline
+
+
 
 def clamp(value: float, lower_bound: float, upper_bound: float) -> float:
     """
