@@ -41,7 +41,6 @@ class State(Enum):
     REVERSE = 3
     PARKED = 4
 
-
 ########################################################################################
 # Global variables
 ########################################################################################
@@ -60,10 +59,16 @@ FOLLOWING_SPEED = 0.15 if IS_REAL else 0.75
 
 # GRAVITY: NDArray = np.array((0.0, -9.81, 0.0))
 
+# lidar
+OFFSET = 7
+
+RIGHT_WINDOW = (90 - OFFSET, 90)
+LEFT_WINDOW = (270, 270 + OFFSET)
+
 current_state: State = State.CONE_SLALOM
 speed = 0.0  # The current speed of the car
 angle = 0.0  # The current angle of the car's wheels
-angle_limiter = RateLimiter(0.1) # A filter that can be used by states to smooth angle control
+angle_limiter = RateLimiter(0.08) # A filter that can be used by states to smooth angle control
 
 position = np.array((0.0, 0.0, 0.0))
 velocity = np.array((0.0, 0.0, 0.0))
@@ -76,6 +81,15 @@ angle_controller = PIDController(
     k_p=0.12 if IS_REAL else 8.0,
     k_i=0,
     k_d=0.055 if IS_REAL else 0.1,
+    min_output=-1,
+    max_output=1
+)
+
+wall_controller = PIDController(
+    k_p=0.0045,
+    k_i=0.0,
+    k_d=0.0002,
+    setpoint=0,
     min_output=-1,
     max_output=1
 )
@@ -136,12 +150,11 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
-# cone_priority = (Color.ORANGE, Color.RED, Color.BLUE, Color.PURPLE)
-RIGHT_CONE = Color.RED
-LEFT_CONE = Color.BLUE
+RIGHT_CONE = Color.ORANGE
+LEFT_CONE = Color.PURPLE
 
 prev_cone: Optional[Color] = None
-target_cone: Color = Color.RED
+target_cone: Color = RIGHT_CONE
 
 def update():
     """
@@ -170,12 +183,14 @@ def update():
 
     if current_state == State.CONE_SLALOM:
 
-        cone = get_contour(image, (target_cone, ), crop_bottom_two_thirds, min_contour_area=800)
+        cone = get_contour(image, (target_cone, ), crop_bottom_two_thirds, min_contour_area=300)
         red = get_contour(image, (Color.RED, ), crop_bottom_two_thirds)
 
         # if red is not None:
         #     current_state = State.PARKED
         #     return
+
+        print(f"prev cone: {prev_cone}, target cone: {target_cone}")
 
         if cone is not None:
             prev_cone = cone.color
@@ -191,8 +206,18 @@ def update():
             print(f"going to {cone.color}")
         elif prev_cone is not None:
             target_cone = RIGHT_CONE if prev_cone == LEFT_CONE else LEFT_CONE
-            # angle = angle_controller.calculate(0.5 * (1 if current_cone == Color.PURPLE else -1))
-            angle = 0.3 * (1 if target_cone == RIGHT_CONE else -1)
+            # angle = angle_limiter.update(0.15 * (1 if target_cone == RIGHT_CONE else -1))
+            angle = 0.15 * (1 if target_cone == RIGHT_CONE else -1)
+
+        speed = FOLLOWING_SPEED
+
+    if current_state == State.WALL_FOLLOWING:
+        scan = rc.lidar.get_samples()
+
+        _, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
+        _, right_dist = rc_utils.get_lidar_closest_point(scan, RIGHT_WINDOW)
+
+        angle = wall_controller.calculate(position=(left_dist - right_dist))
 
         speed = FOLLOWING_SPEED
 
