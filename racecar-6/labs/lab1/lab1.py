@@ -39,7 +39,6 @@ def start():
     rc.drive.stop()
 
     # Print start message
-    # TODO (main challenge): add a line explaining what the Y button does
     print(
         ">> Lab 1 - Driving in Shapes\n"
         "\n"
@@ -50,6 +49,7 @@ def start():
         "    A button = drive in a circle\n"
         "    B button = drive in a square\n"
         "    X button = drive in a figure eight\n"
+        "    Y button = drive in a star\n"
     )
 
 
@@ -58,9 +58,9 @@ def update():
     After start() is run, this function is run every frame until the back button
     is pressed
     """
-    # TODO (warmup): Implement acceleration and steering
+
     global queue
-    
+
     rc.drive.set_speed_angle(0, 0)
 
     if rc.controller.was_pressed(rc.controller.Button.A):
@@ -68,17 +68,11 @@ def update():
         queue.append([5.5,1,1])
 
 
-    if rc.controller.was_pressed(rc.controller.Button.Y):
-        print("Driving in a star...")
-        for _ in range(5):
-            queue.append([2,1,0])
-            queue.append([1,1,1])
-            # queue.append([3,-1,-1])
-            # queue.append([4,1,0])
-         
-            # queue.append([2,-1,-1])
-            # queue.append([2,-1,0])
-            # queue.append([2,-1,-1])
+if rc.controller.was_pressed(rc.controller.Button.Y):
+    print("Driving in a star...")
+    for _ in range(5):
+        queue.append([2,1,0])
+        queue.append([2.5,1,1])
 
     if rc.controller.was_pressed(rc.controller.Button.B):
         print("Driving in a square...")
@@ -86,10 +80,6 @@ def update():
             queue.append([2,0.5,0])
             queue.append([0.5,0.5,1])
 
-    # TODO (main challenge): Drive in a figure eight when the X button is pressed
-
-    # TODO (main challenge): Drive in a shape of your choice when the Y button
-    # is pressed
     if len(queue) != 0:
         queue[0][0] -= rc.get_delta_time()
         command = queue[0]
@@ -97,7 +87,6 @@ def update():
         rc.drive.set_speed_angle(command[1], command[2])
         if command[0] <= 0:
             queue.pop(0)
-        
 
 
 ########################################################################################

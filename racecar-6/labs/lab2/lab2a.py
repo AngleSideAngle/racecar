@@ -18,11 +18,11 @@ import cv2 as cv
 import cv_functions
 import numpy as np
 from nptyping import NDArray
-from control import PIDController
 
 sys.path.insert(1, "../../library")
 import racecar_core
 import racecar_utils as rc_utils
+from group_6.control import PIDController
 
 ########################################################################################
 # Global variables
@@ -264,7 +264,7 @@ def update():
     # Print the current speed and angle when the A button is held down
     if rc.controller.is_down(rc.controller.Button.A):
         print("Speed:", speed, "Angle:", angle)
-    
+
     # Print the center and area of the largest contour when B is held down
     if rc.controller.is_down(rc.controller.Button.B):
         if contour_center is None:
@@ -279,7 +279,7 @@ def update_slow():
     """
     # Print a line of ascii text denoting the contour area and x-position
     # update_based_on_taps()
-    
+
     if rc.camera.get_color_image() is None:
         # If no image is found, print all X's and don't display an image
         print("X" * 10 + " (No image) " + "X" * 10)

@@ -22,27 +22,12 @@ racecar() {
     elif [ $# -eq 1 ] && [ "$1" = "setup" ]; then
       echo "Creating your team directory (${RACECAR_DESTINATION_PATH}) on your RACECAR..."
       ssh racecar@"$RACECAR_IP" mkdir -p "$RACECAR_DESTINATION_PATH"
-      racecar sync all
+      racecar sync
     elif [ $# -ge 2 ] && [ "$1" = "sim" ]; then
       python3 "$2" -s "$3" "$4" "$5" "$6"
-    elif [ $# -eq 2 ] && [ "$1" = "sync" ]; then
-      local valid_command=false
-      if [ "$2" = "library" ] || [ "$2" = "all" ]; then
-        echo "Copying your local copy of the RACECAR library to your car (${RACECAR_IP})..."
-        scp -rp "$RACECAR_ABSOLUTE_PATH"/library racecar@"$RACECAR_IP":"$RACECAR_DESTINATION_PATH"
-        valid_command=true
-      fi
-      if [ "$2" = "labs" ] || [ "$2" = "all" ]; then
-        echo "Copying your local copy of the RACECAR labs to your car (${RACECAR_IP})..."
-        scp -rp "$RACECAR_ABSOLUTE_PATH"/labs racecar@"$RACECAR_IP":"$RACECAR_DESTINATION_PATH"
-        valid_command=true
-      fi
-      if [ "$valid_command" = false ]; then
-        echo "'${2}' is not a recognized sync command.  Please enter one of the following:"
-        echo "racecar sync labs"
-        echo "racecar sync library"
-        echo "racecar sync all"
-      fi
+    elif [ $# -eq 1 ] && [ "$1" = "sync" ]; then
+      echo "Copying your local copy of the RACECAR library to your car (${RACECAR_IP})..."
+      rsync -azP --delete "$RACECAR_ABSOLUTE_PATH" racecar@"$RACECAR_IP":"$RACECAR_DESTINATION_PATH"
     elif [ $# -eq 1 ] && [ "$1" = "test" ]; then
       echo "racecar tool set up successfully!"
       echo "  RACECAR_ABSOLUTE_PATH: ${RACECAR_ABSOLUTE_PATH}"
@@ -63,9 +48,7 @@ racecar() {
       echo "  racecar remove: removes your team directory from your car."
       echo "  racecar setup: sets up your team directory on your car."
       echo "  racecar sim <filename.py>: runs the specified racecar program for use with RacecarSim."
-      echo "  racecar sync library: copies your local RACECAR library folder to your car with scp."
-      echo "  racecar sync labs: copies your local RACECAR labs folder to your car with scp."
-      echo "  racecar sync all: copies all local RACECAR files to you car with scp."
+      echo "  racecar sync: copies all local RACECAR files to you car with rsync."
       echo "  racecar test: prints a message to check if the RACECAR tool was set up successfully."
     fi
   fi

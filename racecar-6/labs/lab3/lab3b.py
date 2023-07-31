@@ -10,6 +10,7 @@ Lab 3B - Depth Camera Cone Parking
 # Imports
 ########################################################################################
 
+from enum import Enum
 import sys
 import cv2 as cv
 import numpy as np
@@ -21,6 +22,11 @@ import racecar_utils as rc_utils
 ########################################################################################
 # Global variables
 ########################################################################################
+
+class State(Enum):
+    SEARCHING = 0
+    FOLLOWING = 1
+    PARKED = 2
 
 rc = racecar_core.create_racecar()
 

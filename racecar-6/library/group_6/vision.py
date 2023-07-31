@@ -120,3 +120,4 @@ def crop_bottom_two_thirds(image: NDArray) -> NDArray:
     Returns the bottom 2/3 of the inputted NDArray
     """
     return rc_utils.crop(image, (image.shape[0] // 3, 0), (image.shape[0], image.shape[1]))
+    

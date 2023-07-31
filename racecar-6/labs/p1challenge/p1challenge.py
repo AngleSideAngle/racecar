@@ -22,7 +22,6 @@ import racecar_utils as rc_utils
 from group_6.control import *
 from group_6.vision import *
 
-
 ########################################################################################
 # State
 ########################################################################################
@@ -52,7 +51,7 @@ IS_REAL = not IS_SIMULATION
 
 LINE_COLOR_PRIORITY = (Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
 
-FOLLOWING_SPEED = 0.14 if IS_REAL else 0.75
+FOLLOWING_SPEED = 0.09 if IS_REAL else 0.75
 
 # wall following
 OFFSET = 7
@@ -120,8 +119,6 @@ def start():
     # Print start message
     print(">> Phase 1 Challenge: Cone Slaloming")
 
-orange_time = 0
-ORANGE_TIMER = 8
 
 def update():
     """
@@ -134,6 +131,7 @@ def update():
     # depth = get_closest_depth()
     image = rc.camera.get_color_image()
     print(current_state)
+    tags = [tag.get_id() for tag in visible_tags]
 
     if current_state == State.LINE_FOLLOWING:
         contour = get_contour(image, LINE_COLOR_PRIORITY, crop_floor, min_contour_area=600)
@@ -153,11 +151,8 @@ def update():
             speed = -FOLLOWING_SPEED - 0.08
             angle = 0
 
-        tags = [tag.get_id() for tag in visible_tags]
         if 4 in tags:
             current_state = State.WALL_FOLLOWING
-            # entering wall following
-            orange_time = time.perf_counter() + ORANGE_TIMER
         elif 3 in tags:
             end_breaking = time.perf_counter() + BRAKING_TIME
             current_state = State.BRAKING
@@ -188,9 +183,6 @@ def update():
 
         speed = FOLLOWING_SPEED
 
-        if time.perf_counter() > orange_time and get_contour(image, (Color.BLUE, ), crop_floor):
-            current_state = State.LINE_FOLLOWING
-
     if current_state == State.WALL_FOLLOWING:
         scan = rc.lidar.get_samples()
 
@@ -202,7 +194,7 @@ def update():
 
         speed = FOLLOWING_SPEED
 
-        if get_contour(image, (Color.ORANGE, ), crop_bottom_two_thirds, 700):
+        if 1 in tags:
             current_state = State.CONE_SLALOM
 
     if current_state == State.BRAKING:
