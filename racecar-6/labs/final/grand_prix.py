@@ -34,19 +34,20 @@ rc = racecar_core.create_racecar()
 IS_SIMULATION = "-s" in sys.argv
 IS_REAL = not IS_SIMULATION
 
-FOLLOWING_SPEED = 0.09 if IS_REAL else 0.75
+GENERAL_COLOR_PRIORITY = (Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
+END_COLOR_PRIORITY = (Color.BLUE, )
+
+FOLLOWING_SPEED = 0.13 if IS_REAL else 0.75
 
 visible_tags: List[rc_utils.ARMarker] = []
 
-def visible_ids() -> map[int]:
+def visible_ids():
     return map(lambda tag: tag.get_id(), visible_tags)
 
 class LineFollowing(State):
 
-    color_priority = (Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
-
     controller = PIDController(
-        k_p=0.15 if IS_REAL else 8.0,
+        k_p=0.16 if IS_REAL else 8.0,
         k_i=0,
         k_d=0.005 if IS_REAL else 0.1,
         min_output=-1,
@@ -55,7 +56,10 @@ class LineFollowing(State):
 
     debouncer = Debouncer(baseline=True, debounce_time=0.3)
 
-    def execute(self) -> tuple[float, float]:
+    def __init__(self, color_priority) -> None:
+        self.color_priority = color_priority
+
+    def execute(self) -> Tuple[float, float]:
         speed = 0
         angle = 0
 
@@ -75,18 +79,17 @@ class LineFollowing(State):
         if in_sight:
             speed = FOLLOWING_SPEED
         else:
-            speed = -FOLLOWING_SPEED - 0.08
+            speed = -FOLLOWING_SPEED - 0.1
 
         return (speed, angle)
 
     def next_state(self) -> State:
         ids = visible_ids()
         if 4 in ids:
-            return self
-        elif 3 in ids:
-            return self
-        else:
-            return self
+            return WallFollowing()
+        if 3 in ids:
+            return Stopped()
+        return self
 
 class WallFollowing(State):
 
@@ -97,13 +100,13 @@ class WallFollowing(State):
     controller = PIDController(
         k_p=0.004,
         k_i=0.0,
-        k_d=0.001,
+        k_d=0.004,
         setpoint=70,
         min_output=-1,
         max_output=1
     )
 
-    def execute(self) -> tuple[float, float]:
+    def execute(self) -> Tuple[float, float]:
         scan = rc.lidar.get_samples()
 
         # _, left_dist = rc_utils.get_lidar_closest_point(scan, LEFT_WINDOW)
@@ -119,9 +122,8 @@ class WallFollowing(State):
     def next_state(self) -> State:
         ids = visible_ids()
         if 1 in ids:
-            return self
-        else:
-            return self
+            return ConeSlalom()
+        return self
 
 class ConeSlalom(State):
 
@@ -139,12 +141,13 @@ class ConeSlalom(State):
 
     debouncer = Debouncer(baseline=True, debounce_time=0.3)
 
-
     prev_cone: Optional[Color] = None
     target_cone: Color = RIGHT_CONE
 
-    def execute(self) -> tuple[float, float]:
-        speed = 0
+    seen_cones = 0
+    CONE_THRESHOLD = 4
+
+    def execute(self) -> Tuple[float, float]:
         angle = 0
 
         image = rc.camera.get_color_image()
@@ -162,7 +165,7 @@ class ConeSlalom(State):
 
             cone_offset = min(cone.center[1], 0) if cone.color == self.LEFT_CONE else max(cone.center[1], 0)
             angular_offset = rc_utils.remap_range(cone_offset, 0, image.shape[1], -1, 1)
-            
+
             angle = self.controller.calculate(position=0, setpoint=angular_offset+color_offset)
             print(f"going to {cone.color}")
         elif self.prev_cone is not None and not in_sight:
@@ -170,12 +173,22 @@ class ConeSlalom(State):
             # angle = angle_limiter.update(0.15 * (1 if target_cone == RIGHT_CONE else -1))
             angle = 0.15 * (1 if target_cone == self.RIGHT_CONE else -1)
 
-        return (speed, angle)
+        return (FOLLOWING_SPEED, angle)
+
+    def next_state(self) -> State:
+        if self.seen_cones >= self.CONE_THRESHOLD:
+            return LineFollowing(END_COLOR_PRIORITY)
+        return self
+
+class Stopped(State):
+
+    def execute(self) -> Tuple[float, float]:
+        return (0, 0)
 
     def next_state(self) -> State:
         return self
-        
-current_state = LineFollowing()
+
+current_state = ConeSlalom() # LineFollowing(GENERAL_COLOR_PRIORITY)
 
 
 ########################################################################################
@@ -203,7 +216,7 @@ def update():
     """
 
     global current_state
-    
+
     speed, angle = current_state.execute()
     current_state = current_state.next_state()
 
@@ -218,7 +231,7 @@ def update_ar_markers():
     global visible_tags
 
     image = rc.camera.get_color_image()
-    visible_tags: List[rc_utils.ARMarker] = rc_utils.get_ar_markers(image) # check colors too
+    visible_tags = rc_utils.get_ar_markers(image) # check colors too
     for tag in visible_tags:
         print(f"SEEN TAG: {tag.get_id()}")
 
