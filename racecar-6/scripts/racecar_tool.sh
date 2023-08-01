@@ -26,7 +26,7 @@ racecar() {
     elif [ $# -ge 2 ] && [ "$1" = "sim" ]; then
       python3 "$2" -s "$3" "$4" "$5" "$6"
     elif [ $# -eq 1 ] && [ "$1" = "sync" ]; then
-      echo "Copying your local copy of the RACECAR library to your car (${RACECAR_IP})..."
+      echo "Copying your local copy of the RACECAR project to your car (${RACECAR_IP})..."
       rsync -azP --delete "$RACECAR_ABSOLUTE_PATH"/ racecar@"$RACECAR_IP":"$RACECAR_DESTINATION_PATH"
     elif [ $# -eq 1 ] && [ "$1" = "test" ]; then
       echo "racecar tool set up successfully!"
