@@ -42,6 +42,7 @@ class ContourData(NamedTuple):
     color: Color
     center: Tuple[float, float]
     area: float
+    bounds: Tuple[float, float]
 
 def get_contour(
     image: NDArray,
@@ -81,7 +82,7 @@ def get_contour(
         if contour_center:
             rc_utils.draw_circle(image, contour_center)
 
-        return ContourData(contour, color, contour_center, contour_area)  # type: ignore
+        return ContourData(contour, color, contour_center, contour_area, image.shape)  # type: ignore
 
     return None
 
@@ -120,4 +121,15 @@ def crop_bottom_two_thirds(image: NDArray) -> NDArray:
     Returns the bottom 2/3 of the inputted NDArray
     """
     return rc_utils.crop(image, (image.shape[0] // 3, 0), (image.shape[0], image.shape[1]))
-    
+
+def crop_left(image: NDArray) -> NDArray:
+    """
+    Return left half of image
+    """
+    return rc_utils.crop(image, (0, 0), (image.shape[0], image.shape[1] // 2))
+
+def crop_right(image: NDArray) -> NDArray:
+    """
+    Return right half of image
+    """
+    return rc_utils.crop(image, (0, image.shape[1] // 2), (image.shape[0], image.shape[1]))

@@ -11,7 +11,7 @@ Final Challenge - Grand Prix
 ########################################################################################
 
 import sys
-from typing import List
+from typing import List, Tuple
 import cv2 as cv
 import numpy as np
 
@@ -180,6 +180,45 @@ class ConeSlalom(State):
             return LineFollowing(END_COLOR_PRIORITY)
         return self
 
+class LaneFollow(State):
+
+    controller = PIDController(
+        k_p=0.16 if IS_REAL else 8.0,
+        k_i=0,
+        k_d=0.005 if IS_REAL else 0.1,
+        setpoint=0,
+        min_output=-1,
+        max_output=1
+    )
+
+    def __init__(self, color: Color) -> None:
+        self.color = color
+
+    def execute(self) -> Tuple[float, float]:
+        angle = 0
+        speed = FOLLOWING_SPEED
+
+        image = crop_floor(rc.camera.get_color_image())
+
+        left = get_contour(image, (self.color, ), crop_left)
+        right = get_contour(image, (self.color, ), crop_right)
+
+        print(f"seen left: {left.center if left is not None else 'NONE'}, seen right: {right.center if right is not None else 'NONE'}")
+
+        if left is None or right is None:
+            return (0, 0)
+
+        left_dist = left.bounds[1] - left.center[1]
+
+        print(left_dist)
+
+        angle = self.controller.calculate(position=left_dist-right.center[1])
+
+        return (speed, angle)
+
+    def next_state(self):
+        return self
+
 class Stopped(State):
 
     def execute(self) -> Tuple[float, float]:
@@ -188,7 +227,7 @@ class Stopped(State):
     def next_state(self) -> State:
         return self
 
-current_state = ConeSlalom() # LineFollowing(GENERAL_COLOR_PRIORITY)
+current_state = LaneFollow(color=Color.BLUE) # LineFollowing(GENERAL_COLOR_PRIORITY)
 
 
 ########################################################################################
