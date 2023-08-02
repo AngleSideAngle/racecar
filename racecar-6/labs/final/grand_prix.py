@@ -37,7 +37,7 @@ IS_REAL = not IS_SIMULATION
 GENERAL_COLOR_PRIORITY = (Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
 END_COLOR_PRIORITY = (Color.BLUE, )
 
-FOLLOWING_SPEED = 0.13 if IS_REAL else 0.75
+FOLLOWING_SPEED = 0.14 if IS_REAL else 0.75
 
 visible_tags: List[rc_utils.ARMarker] = []
 
@@ -128,8 +128,9 @@ class WallFollowing(State):
 class ConeSlalom(State):
 
     # cone slalom
-    RIGHT_CONE = Color.ORANGE
-    LEFT_CONE = Color.PURPLE
+    right_cone: Color
+    left_cone: Color
+    default_angle: float
 
     controller = PIDController(
         k_p=0.15 if IS_REAL else 8.0,
@@ -140,38 +141,49 @@ class ConeSlalom(State):
     )
 
     debouncer = Debouncer(baseline=True, debounce_time=0.3)
+    angle_limiter = RateLimiter(rate=0.05)
 
     prev_cone: Optional[Color] = None
-    target_cone: Color = RIGHT_CONE
+    target_cone: Color
 
     seen_cones = 0
     CONE_THRESHOLD = 4
+
+    def __init__(self, right_color: Color = Color.ORANGE, left_color: Color = Color.PURPLE, default_angle: float = 0.15) -> None:
+        self.right_cone = right_color
+        self.left_cone = left_color
+        self.default_angle = default_angle
+
+        self.target_cone = self.right_cone
 
     def execute(self) -> Tuple[float, float]:
         angle = 0
 
         image = rc.camera.get_color_image()
-        cone = get_contour(image, (self.target_cone, ), crop_bottom_two_thirds)
+        cone = get_contour(image, (self.target_cone, ), crop_bottom_3_4ths, min_contour_area=300)
 
-        print(f"prev cone: {self.prev_cone}, target cone: {self.target_cone}")
+        # print(f"prev cone: {self.prev_cone}, target cone: {self.target_cone}")
 
         in_sight = self.debouncer.update(cone is not None)
 
         if cone is not None:
             self.prev_cone = cone.color
 
-            print(f"cone color: {cone.color}")
-            color_offset = 1 * (-1 if cone.color == self.LEFT_CONE else 1)
+            # print(f"cone color: {cone.color}")
+            color_offset = cone.area / 100.0 * (-1 if cone.color == self.left_cone else 1)
 
-            cone_offset = min(cone.center[1], 0) if cone.color == self.LEFT_CONE else max(cone.center[1], 0)
+            cone_offset = min(cone.center[1], 0) if cone.color == self.left_cone else max(cone.center[1], 0)
             angular_offset = rc_utils.remap_range(cone_offset, 0, image.shape[1], -1, 1)
 
             angle = self.controller.calculate(position=0, setpoint=angular_offset+color_offset)
             print(f"going to {cone.color}")
+
         elif self.prev_cone is not None and not in_sight:
-            target_cone = self.RIGHT_CONE if self.prev_cone == self.LEFT_CONE else self.LEFT_CONE
-            # angle = angle_limiter.update(0.15 * (1 if target_cone == RIGHT_CONE else -1))
-            angle = 0.15 * (1 if target_cone == self.RIGHT_CONE else -1)
+            self.target_cone = self.right_cone if self.prev_cone == self.left_cone else self.left_cone
+            print(f"SWITCHING TO: {self.target_cone}")
+            limited_angle = self.default_angle * (1 if self.target_cone == self.right_cone else -1)
+            # angle = self.angle_limiter.update(limited_angle) + limited_angle
+            angle = limited_angle
 
         return (FOLLOWING_SPEED, angle)
 
@@ -198,19 +210,20 @@ class LaneFollow(State):
         angle = 0
         speed = FOLLOWING_SPEED
 
-        image = crop_floor(rc.camera.get_color_image())
+        image = crop_bottom_two_thirds(rc.camera.get_color_image())
 
-        left = get_contour(image, (self.color, ), crop_left)
-        right = get_contour(image, (self.color, ), crop_right)
+        left = get_contour(image, (self.color, ), cropper=crop_left, min_contour_area=180)
+        right = get_contour(image, (self.color, ), cropper=crop_right, min_contour_area=180)
 
         print(f"seen left: {left.center if left is not None else 'NONE'}, seen right: {right.center if right is not None else 'NONE'}")
 
-        if left is None or right is None:
-            return (0, 0)
+        left_dist = left.bounds[1] - left.center[1] if left is not None else image.shape[1] // 4
+        right_dist = right.bounds[1] if right is not None else image.shape[1] // 4
 
-        left_dist = left.bounds[1] - left.center[1]
-        offset = left_dist-right.center[1]
-        position = rc_utils.remap_range(offset, -image.shape[1] / 2, image.shape[1] / 2, -1, 1)
+        # if left is None or right is None:
+        #     return (0, 0)
+        
+        position = rc_utils.remap_range(left_dist-right_dist, -image.shape[1] / 2, image.shape[1] / 2, -1, 1)
 
         angle = self.controller.calculate(position=position)
 
@@ -227,7 +240,7 @@ class Stopped(State):
     def next_state(self) -> State:
         return self
 
-current_state = LaneFollow(color=Color.PURPLE) # LineFollowing(GENERAL_COLOR_PRIORITY)
+current_state = ConeSlalom(right_color=Color.ORANGE, left_color=Color.PURPLE, default_angle=0.15) # LineFollowing(GENERAL_COLOR_PRIORITY)
 
 
 ########################################################################################
