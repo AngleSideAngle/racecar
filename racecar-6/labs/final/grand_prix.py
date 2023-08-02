@@ -209,13 +209,13 @@ class LaneFollow(State):
             return (0, 0)
 
         left_dist = left.bounds[1] - left.center[1]
+        offset = left_dist-right.center[1]
+        position = rc_utils.remap_range(offset, -image.shape[1] / 2, image.shape[1] / 2, -1, 1)
 
-        print(left_dist)
-
-        angle = self.controller.calculate(position=left_dist-right.center[1])
+        angle = self.controller.calculate(position=position)
 
         return (speed, angle)
-
+    
     def next_state(self):
         return self
 
@@ -227,7 +227,7 @@ class Stopped(State):
     def next_state(self) -> State:
         return self
 
-current_state = LaneFollow(color=Color.BLUE) # LineFollowing(GENERAL_COLOR_PRIORITY)
+current_state = LaneFollow(color=Color.PURPLE) # LineFollowing(GENERAL_COLOR_PRIORITY)
 
 
 ########################################################################################
