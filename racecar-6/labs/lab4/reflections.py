@@ -32,10 +32,12 @@ def time_function(function):
     return (value, end_time - start_time)
 
 def test_integration_rule(rule):
-    answer, time = time_function(rule)
-    print(f"without noise: {answer} in {time} seconds")
-    answer, time = time_function(lambda: rule(True))
-    print(f"with noise: {answer} in {time} seconds")
+    ideal, time = time_function(rule)
+    print(f"without noise: {ideal} in {time} seconds")
+    noisy, time = time_function(lambda: rule(True))
+    print(f"with noise: {noisy} in {time} seconds")
+    error = ideal - noisy
+    print(f"error: {error}")
 
 print("# simpson's rule")
 test_integration_rule(integrate_simpsons)

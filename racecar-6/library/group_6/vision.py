@@ -27,8 +27,8 @@ class Color(Enum):
     GREEN = ((30, 160, 150), (60+30, 255, 255+40))
 
     # Cone colors
-    ORANGE = ((4, 135, 150), (16, 255, 255))
-    PURPLE = ((147-20, 128-45, 120), (160, 255, 255))
+    ORANGE = ((0, 125, 200), (16, 255, 255))
+    PURPLE = ((100, 90, 70), (160, 255, 255))
     # Both
     RED = ((150-20, 85-45, 190-30), (179, 255, 255))
     #BLUE = ((90, 110, 110), (120, 255, 255))
@@ -133,3 +133,9 @@ def crop_right(image: NDArray) -> NDArray:
     Return right half of image
     """
     return rc_utils.crop(image, (0, image.shape[1] // 2), (image.shape[0], image.shape[1]))
+
+def crop_bottom_3_4ths(image: NDArray) -> NDArray:
+    """
+    Returns the bottom 2/3 of the inputted NDArray
+    """
+    return rc_utils.crop(image, (image.shape[0] // 4, 0), (image.shape[0], image.shape[1]))

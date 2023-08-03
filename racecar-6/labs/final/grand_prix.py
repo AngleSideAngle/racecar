@@ -37,12 +37,17 @@ IS_REAL = not IS_SIMULATION
 GENERAL_COLOR_PRIORITY = (Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
 END_COLOR_PRIORITY = (Color.BLUE, )
 
-FOLLOWING_SPEED = 0.14 if IS_REAL else 0.75
+FOLLOWING_SPEED = 0.155 if IS_REAL else 0.75
 
 visible_tags: List[rc_utils.ARMarker] = []
 
 def visible_ids():
     return map(lambda tag: tag.get_id(), visible_tags)
+
+def to_steering_angle(val: float, old_min: float, old_max: float) -> float:
+    # ali's code: ********&***&***&***&
+    return rc_utils.remap_range(val, old_min, old_max, -0.25, 0.25, True)
+
 
 class LineFollowing(State):
 
@@ -73,7 +78,7 @@ class LineFollowing(State):
         # If we could not find a contour, keep the previous angle
         if contour is not None:
             print(f"Color: {contour.color}")
-            angular_offset = rc_utils.remap_range(contour.center[1], 0, image.shape[1], -1, 1)
+            angular_offset = to_steering_angle(contour.center[1], 0, image.shape[1])
             angle = self.controller.calculate(position=0, setpoint=angular_offset)
 
         if in_sight:
@@ -133,9 +138,9 @@ class ConeSlalom(State):
     default_angle: float
 
     controller = PIDController(
-        k_p=0.15 if IS_REAL else 8.0,
+        k_p=0.5 if IS_REAL else 8.0,
         k_i=0,
-        k_d=0.005 if IS_REAL else 0.1,
+        k_d=0.01 if IS_REAL else 0.1,
         min_output=-1,
         max_output=1
     )
@@ -149,7 +154,7 @@ class ConeSlalom(State):
     seen_cones = 0
     CONE_THRESHOLD = 4
 
-    def __init__(self, right_color: Color = Color.ORANGE, left_color: Color = Color.PURPLE, default_angle: float = 0.15) -> None:
+    def __init__(self, right_color: Color = Color.ORANGE, left_color: Color = Color.PURPLE, default_angle: float = 0.14) -> None:
         self.right_cone = right_color
         self.left_cone = left_color
         self.default_angle = default_angle
@@ -160,7 +165,8 @@ class ConeSlalom(State):
         angle = 0
 
         image = rc.camera.get_color_image()
-        cone = get_contour(image, (self.target_cone, ), crop_bottom_3_4ths, min_contour_area=300)
+        targets = (self.target_cone, self.prev_cone) if self.prev_cone is not None else (self.target_cone, )
+        cone = get_contour(image, targets, crop_bottom_3_4ths, min_contour_area=250)
 
         # print(f"prev cone: {self.prev_cone}, target cone: {self.target_cone}")
 
@@ -170,19 +176,24 @@ class ConeSlalom(State):
             self.prev_cone = cone.color
 
             # print(f"cone color: {cone.color}")
-            color_offset = cone.area / 100.0 * (-1 if cone.color == self.left_cone else 1)
+            color_offset = (-1 if cone.color == self.left_cone else 1)
 
-            cone_offset = min(cone.center[1], 0) if cone.color == self.left_cone else max(cone.center[1], 0)
-            angular_offset = rc_utils.remap_range(cone_offset, 0, image.shape[1], -1, 1)
+            center = rc_utils.remap_range(cone.center[1], 0, image.shape[1], -1, 1, True)
+            cone_offset = min(center, 0) if cone.color == self.left_cone else max(center, 0)
 
-            angle = self.controller.calculate(position=0, setpoint=angular_offset+color_offset)
+            # setpoint = to_steering_angle(cone_offset, 0, image.shape[1]) + color_offset
+
+            angle = self.controller.calculate(position=0, setpoint=color_offset+cone_offset)
             print(f"going to {cone.color}")
+        elif in_sight:
+            # cone has been seen previously, but not currently, debounced to avoid error
+            # angle = self.default_angle * (1 if self.prev_cone == self.right_cone else -1)
+            pass
 
-        elif self.prev_cone is not None and not in_sight:
+        elif self.prev_cone is not None:
             self.target_cone = self.right_cone if self.prev_cone == self.left_cone else self.left_cone
-            print(f"SWITCHING TO: {self.target_cone}")
+            # print(f"SWITCHING TO: {self.target_cone}")
             limited_angle = self.default_angle * (1 if self.target_cone == self.right_cone else -1)
-            # angle = self.angle_limiter.update(limited_angle) + limited_angle
             angle = limited_angle
 
         return (FOLLOWING_SPEED, angle)
@@ -222,13 +233,13 @@ class LaneFollow(State):
 
         # if left is None or right is None:
         #     return (0, 0)
-        
-        position = rc_utils.remap_range(left_dist-right_dist, -image.shape[1] / 2, image.shape[1] / 2, -1, 1)
+
+        position = to_steering_angle(left_dist-right_dist, -image.shape[1] / 2, image.shape[1] / 2)
 
         angle = self.controller.calculate(position=position)
 
         return (speed, angle)
-    
+
     def next_state(self):
         return self
 
@@ -240,7 +251,7 @@ class Stopped(State):
     def next_state(self) -> State:
         return self
 
-current_state = ConeSlalom(right_color=Color.ORANGE, left_color=Color.PURPLE, default_angle=0.15) # LineFollowing(GENERAL_COLOR_PRIORITY)
+current_state: State
 
 
 ########################################################################################
@@ -252,6 +263,8 @@ def start():
     """
     This function is run once every time the start button is pressed
     """
+    global current_state
+
     # Have the car begin at a stop
     rc.drive.stop()
 
@@ -259,6 +272,7 @@ def start():
 
     # Print start message
     print(">> Final Challenge - Grand Prix")
+    current_state = ConeSlalom(right_color=Color.PURPLE, left_color=Color.ORANGE) # LineFollowing(GENERAL_COLOR_PRIORITY)
 
 
 def update():
