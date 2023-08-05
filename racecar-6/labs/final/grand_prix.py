@@ -27,6 +27,7 @@ from cone_slalom import ConeSlalom
 from line_following import LineFollowing, LaneFollowing
 from wall_following import SideWallFollowing, CenterWallFollowing
 
+
 ########################################################################################
 # Global variables
 ########################################################################################
@@ -44,8 +45,7 @@ odometry = IMUOdometry()
 
 ########################################################################################
 # Functions
-########################################################################################
-
+########################################################################################)
 
 def start():
     """
@@ -85,10 +85,9 @@ def update():
         lidar_scan=rc.lidar.get_samples()
     )
 
-    if 5 in current_data.get_visible_ids() and not isinstance(current_state, ConeSlalom):
-        current_state = ConeSlalom()
+    current_state = current_state.next_state(current_data)
 
-    speed, angle = current_state(current_data)
+    speed, angle = current_state.execute(current_data)
     speed = speed_limiter.update(speed) # + WEIGHT_COMPENSATION * math.sin(odometry.angular_position[1])
 
     rc.drive.set_speed_angle(speed, angle)

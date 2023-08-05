@@ -6,8 +6,9 @@ from group_6.control import *
 from group_6.vision import *
 from group_6.utils import *
 from constants import *
+from wall_following import SideWallFollowing
 
-class LineFollowing:
+class LineFollowing(State):
 
     controller = PIDController(
         LINE_FOLLOW_PID,
@@ -22,7 +23,7 @@ class LineFollowing:
     def __init__(self, color_priority) -> None:
         self.color_priority = color_priority
 
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
+    def execute(self, data: RobotData) -> Tuple[float, float]:
         speed = 0
         angle = 0
 
@@ -44,11 +45,14 @@ class LineFollowing:
             speed = -FOLLOWING_SPEED
 
         return (speed, angle)
+    
+    def next_state(self, data: RobotData) -> Any:
+        return self
 
     def __repr__(self) -> str:
         return f"Line Following: Contour={self.contour}"
 
-class LaneFollowing:
+class LaneFollowing(State):
 
     controller = PIDController(
         LINE_FOLLOW_PID,
@@ -60,7 +64,7 @@ class LaneFollowing:
     def __init__(self, color: Color) -> None:
         self.color = color
 
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
+    def execute(self, data: RobotData) -> Tuple[float, float]:
         angle = 0
         speed = FOLLOWING_SPEED
 
@@ -75,3 +79,10 @@ class LaneFollowing:
         angle = self.controller.calculate(position=position)
 
         return (speed, angle)
+    
+    def next_state(self, data: RobotData) -> Any:
+
+        if 3 in data.get_visible_ids(): # canyon maze
+            return SideWallFollowing(right_wall=True)
+
+        return self

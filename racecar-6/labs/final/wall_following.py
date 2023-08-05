@@ -8,8 +8,9 @@ from group_6.vision import *
 from group_6.utils import *
 from group_6.localization import *
 from constants import *
+from line_following import LineFollowing
 
-class SideWallFollowing:
+class SideWallFollowing(State):
 
     controller = PIDController(
         RIGHT_WALL_PID,
@@ -21,7 +22,7 @@ class SideWallFollowing:
         self.controller.setpoint = offset
         self.angle = 90 if right_wall else 270
 
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
+    def execute(self, data: RobotData) -> Tuple[float, float]:
 
         # front_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 0)
 
@@ -30,8 +31,14 @@ class SideWallFollowing:
         angle = self.controller.calculate(position=dist) * (-1 if self.angle == 90 else 1)
 
         return (FOLLOWING_SPEED, angle)
+    
+    def next_state(self, data: RobotData) -> Any:
+        if 4 in data.get_visible_ids(): # go fast speedway
+            return CenterWallFollowing()
 
-class CenterWallFollowing:
+        return self
+
+class CenterWallFollowing(State):
 
     controller = PIDController(
         CENTER_WALL_PID,
@@ -39,7 +46,10 @@ class CenterWallFollowing:
         max_output=1
     )
 
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
+    def __init__(self, speed: float = FOLLOWING_SPEED) -> None:
+        self.speed = speed
+
+    def execute(self, data: RobotData) -> Tuple[float, float]:
         # speed = FOLLOWING_SPEED
 
         right_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 45, 35)
@@ -57,7 +67,16 @@ class CenterWallFollowing:
         #     speed -= 0.05
 
         # return (speed - 0.01 + abs(angle) / 20, angle)
-        return (FOLLOWING_SPEED, angle)
+        return (self.speed, angle)
+    
+    def next_state(self, data: RobotData) -> Any:
+        if 1 in data.get_visible_ids(): # overpass
+            pass
+
+        if 2 in data.get_visible_ids(): # graveyard
+            return LineFollowing(GRAVEYARD_COLOR_PRIORITY)
+
+        return self
 
     def __repr__(self) -> str:
         return f"Wall Following (Center): {self.controller}"

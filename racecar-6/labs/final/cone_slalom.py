@@ -1,5 +1,6 @@
 import sys
-from typing import Tuple
+from typing import Any, Tuple
+from group_6.utils import RobotData
 
 sys.path.insert(0, "../../library")
 import racecar_utils as rc_utils
@@ -8,7 +9,8 @@ from group_6.vision import *
 from group_6.utils import *
 from constants import *
 
-class ConeSlalom:
+
+class ConeSlalom(State):
 
     # cone slalom
     right_cone: Color
@@ -42,7 +44,7 @@ class ConeSlalom:
 
         self.target_cone = self.right_cone
 
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
+    def execute(self, data: RobotData) -> Tuple[float, float]:
         angle = 0
 
         targets = (self.target_cone, self.prev_cone) if self.prev_cone is not None else (self.target_cone, )
@@ -72,6 +74,9 @@ class ConeSlalom:
             angle = limited_angle
 
         return (FOLLOWING_SPEED, angle)
+    
+    def next_state(self, data: RobotData) -> Any:
+        return self
 
     def __repr__(self) -> str:
         return f"{self.__class__}: {self.__dict__}"
