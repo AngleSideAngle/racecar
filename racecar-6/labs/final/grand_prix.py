@@ -20,23 +20,26 @@ import racecar_core
 import racecar_utils as rc_utils
 from group_6.control import *
 from group_6.vision import *
+from group_6.localization import *
 from group_6.utils import *
+from constants import *
 from cone_slalom import ConeSlalom
 from line_following import LineFollowing, LaneFollowing
-from wall_following import RightWallFollowing, CenterWallFollowing
+from wall_following import WallFollowing
 
 ########################################################################################
 # Global variables
 ########################################################################################
 
 rc = racecar_core.create_racecar()
-speed_limiter = RateLimiter(0.1)
+speed_limiter = RateLimiter(0.2)
 
 # Add any global variables here
 
 current_state: State
 current_data: RobotData # read only data for passing to states
-visible_tags: List[rc_utils.ARMarker] = []
+# visible_tags: List[rc_utils.ARMarker] = []
+odometry = IMUOdometry()
 
 
 ########################################################################################
@@ -53,30 +56,40 @@ def start():
     # Have the car begin at a stop
     rc.drive.stop()
 
-    rc.set_update_slow_time(0.08)
+    rc.set_update_slow_time(0.5)
 
     # Print start message
     print(">> Final Challenge - Grand Prix")
 
-    current_state = ConeSlalom()
+    current_state = WallFollowing(right_wall=True) # LineFollowing((BLUE, GREEN, RED))
 
 
 def update():
     """
     After start() is run, this function is run every frame until the back button
-    is pressed
+    is pressedr
     """
 
     global current_state, current_data
 
+    image = rc.camera.get_color_image()
+
+    odometry.update_odometry(
+        rc.physics.get_linear_acceleration(),
+        rc.physics.get_angular_velocity()
+    )
+
     current_data = RobotData(
-        image=rc.camera.get_color_image(),
-        visible_tags=visible_tags,
+        image=image,
+        visible_tags=rc_utils.get_ar_markers(image),
         lidar_scan=rc.lidar.get_samples()
     )
 
+    if 5 in current_data.get_visible_ids() and not isinstance(current_state, ConeSlalom):
+        current_state = ConeSlalom()
+
     speed, angle = current_state(current_data)
-    speed = speed_limiter.update(speed)
+    speed = speed_limiter.update(speed) # + WEIGHT_COMPENSATION * math.sin(odometry.angular_position[1])
 
     rc.drive.set_speed_angle(speed, angle)
 
@@ -89,11 +102,6 @@ def update_slow() -> None:
     """
     Slow update function, updates ar markers and prints diagnostic data
     """
-
-    global visible_tags
-
-    image = rc.camera.get_color_image()
-    visible_tags = rc_utils.get_ar_markers(image)
 
     print(f"TIME ELAPSED: {rc.get_delta_time()}", current_state, current_data, sep="\n")
 

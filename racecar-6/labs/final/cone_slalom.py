@@ -46,7 +46,7 @@ class ConeSlalom:
         angle = 0
 
         targets = (self.target_cone, self.prev_cone) if self.prev_cone is not None else (self.target_cone, )
-        cone = get_contour(data.image, targets, crop_bottom_3_4ths, min_contour_area=300)
+        cone = get_contour(data.image, targets, crop_bottom_3_4ths, min_contour_area=100)
 
         # print(f"prev cone: {self.prev_cone}, target cone: {self.target_cone}")
 

@@ -6,9 +6,10 @@ import racecar_utils as rc_utils
 from group_6.control import *
 from group_6.vision import *
 from group_6.utils import *
+from group_6.localization import *
 from constants import *
 
-class RightWallFollowing:
+class WallFollowing:
 
     controller = PIDController(
         RIGHT_WALL_PID,
@@ -16,33 +17,59 @@ class RightWallFollowing:
         max_output=1
     )
 
-    def __init__(self, offset: float = 70) -> None:
+    def __init__(self, right_wall: bool, offset: float = 60) -> None:
         self.controller.setpoint = offset
-
-
-    def __call__(self, data: RobotData) -> Tuple[float, float]:
-        _, right_dist = rc_utils.get_lidar_closest_point(data.scan, RIGHT_WINDOW)
-
-        angle = -self.controller.calculate(position=right_dist)
-
-        return (FOLLOWING_SPEED, angle)
-
-class CenterWallFollowing:
-
-    controller = PIDController(
-        CENTER_WALL_PID,
-        min_output=-1,
-        max_output=1
-    )
+        self.angle = 90 if right_wall else 270
 
     def __call__(self, data: RobotData) -> Tuple[float, float]:
 
-        _, left_dist = rc_utils.get_lidar_closest_point(data.scan, LEFT_WINDOW)
-        _, right_dist = rc_utils.get_lidar_closest_point(data.scan, RIGHT_WINDOW)
+        # front_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 0)
 
-        angle = self.controller.calculate(position=left_dist-right_dist)
+        dist = rc_utils.get_lidar_average_distance(data.lidar_scan, self.angle)
+
+        angle = self.controller.calculate(position=dist) * (-1 if self.angle == 90 else 1)
 
         return (FOLLOWING_SPEED, angle)
 
-    def __repr__(self) -> str:
-        return f"Wall Following (Center): {self.controller}"
+# class CenterWallFollowing:
+
+#     # controller = PIDController(
+#     #     CENTER_WALL_PID,
+#     #     min_output=-1,
+#     #     max_output=1
+#     # )
+
+#     left_controller = PIDController(
+#         RIGHT_WALL_PID,
+#         setpoint=50,
+#         min_output=-1,
+#         max_output=1
+#     )
+
+#     right_controller = PIDController(
+#         RIGHT_WALL_PID,
+#         setpoint=50,
+#         min_output=-1,
+#         max_output=1
+#     )
+
+#     def __call__(self, data: RobotData) -> Tuple[float, float]:
+#         # speed = FOLLOWING_SPEED
+
+#         left_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 270)
+#         right_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 90)
+#         # _, front_dist = rc_utils.get_lidar_closest_point(data.lidar_scan, FRONT_WINDOW)
+
+#         if left_dist < right_dist:
+#             angle = self.left_controller.calculate(position=-left_dist)
+#         else:
+#             angle = self.right_controller.calculate(position=right_dist)
+
+#         # if front_dist < 100:
+#         #     speed -= 0.05
+
+#         # return (speed - 0.01 + abs(angle) / 20, angle)
+#         return (FOLLOWING_SPEED, angle)
+
+#     def __repr__(self) -> str:
+#         return f"Wall Following (Center)"
