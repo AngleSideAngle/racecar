@@ -25,7 +25,7 @@ from group_6.utils import *
 from constants import *
 from cone_slalom import ConeSlalom
 from line_following import LineFollowing, LaneFollowing
-from wall_following import WallFollowing
+from wall_following import SideWallFollowing, CenterWallFollowing
 
 ########################################################################################
 # Global variables
@@ -61,7 +61,7 @@ def start():
     # Print start message
     print(">> Final Challenge - Grand Prix")
 
-    current_state = WallFollowing(right_wall=True) # LineFollowing((BLUE, GREEN, RED))
+    current_state = CenterWallFollowing() # LineFollowing((BLUE, GREEN, RED))
 
 
 def update():

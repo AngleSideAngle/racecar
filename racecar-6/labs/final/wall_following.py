@@ -9,7 +9,7 @@ from group_6.utils import *
 from group_6.localization import *
 from constants import *
 
-class WallFollowing:
+class SideWallFollowing:
 
     controller = PIDController(
         RIGHT_WALL_PID,
@@ -31,45 +31,33 @@ class WallFollowing:
 
         return (FOLLOWING_SPEED, angle)
 
-# class CenterWallFollowing:
+class CenterWallFollowing:
 
-#     # controller = PIDController(
-#     #     CENTER_WALL_PID,
-#     #     min_output=-1,
-#     #     max_output=1
-#     # )
+    controller = PIDController(
+        CENTER_WALL_PID,
+        min_output=-1,
+        max_output=1
+    )
 
-#     left_controller = PIDController(
-#         RIGHT_WALL_PID,
-#         setpoint=50,
-#         min_output=-1,
-#         max_output=1
-#     )
+    def __call__(self, data: RobotData) -> Tuple[float, float]:
+        # speed = FOLLOWING_SPEED
 
-#     right_controller = PIDController(
-#         RIGHT_WALL_PID,
-#         setpoint=50,
-#         min_output=-1,
-#         max_output=1
-#     )
+        right_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 45, 35)
+        left_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 315, 35)
+        # _, front_dist = rc_utils.get_lidar_closest_point(data.lidar_scan, FRONT_WINDOW)
 
-#     def __call__(self, data: RobotData) -> Tuple[float, float]:
-#         # speed = FOLLOWING_SPEED
+        # if left_dist < right_dist:
+        #     angle = self.left_controller.calculate(position=-left_dist)
+        # else:
+        #     angle = self.right_controller.calculate(position=right_dist)
 
-#         left_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 270)
-#         right_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 90)
-#         # _, front_dist = rc_utils.get_lidar_closest_point(data.lidar_scan, FRONT_WINDOW)
+        angle = self.controller.calculate(position=left_dist-right_dist)
 
-#         if left_dist < right_dist:
-#             angle = self.left_controller.calculate(position=-left_dist)
-#         else:
-#             angle = self.right_controller.calculate(position=right_dist)
+        # if front_dist < 100:
+        #     speed -= 0.05
 
-#         # if front_dist < 100:
-#         #     speed -= 0.05
+        # return (speed - 0.01 + abs(angle) / 20, angle)
+        return (FOLLOWING_SPEED, angle)
 
-#         # return (speed - 0.01 + abs(angle) / 20, angle)
-#         return (FOLLOWING_SPEED, angle)
-
-#     def __repr__(self) -> str:
-#         return f"Wall Following (Center)"
+    def __repr__(self) -> str:
+        return f"Wall Following (Center): {self.controller}"

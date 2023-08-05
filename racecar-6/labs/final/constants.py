@@ -30,11 +30,11 @@ LINE_FOLLOW_PID = PIDConstants(
 
 # LANE_FOLLOW_PID = LINE_FOLLOW_PID * (1.0/2.0)
 
-# CENTER_WALL_PID = PIDConstants(
-#     k_p=0.0013 if IS_REAL else 1.5,
-#     k_i=0.0,
-#     k_d=0.0008 if IS_REAL else 0.8
-# )
+CENTER_WALL_PID = PIDConstants(
+    k_p=0.0013 if IS_REAL else 0.8,
+    k_i=0.0,
+    k_d=0.0008 if IS_REAL else 0.1
+)
 
 RIGHT_WALL_PID = PIDConstants(
     k_p=0.0035,
