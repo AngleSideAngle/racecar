@@ -213,23 +213,11 @@ class CenterWallFollowing(State):
         self.speed = speed
 
     def execute(self, data: RobotData) -> Tuple[float, float]:
-        # speed = FOLLOWING_SPEED
-
         right_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 55, 35)
         left_dist = rc_utils.get_lidar_average_distance(data.lidar_scan, 305, 35)
-        # _, front_dist = rc_utils.get_lidar_closest_point(data.lidar_scan, FRONT_WINDOW)
-
-        # if left_dist < right_dist:
-        #     angle = self.left_controller.calculate(position=-left_dist)
-        # else:
-        #     angle = self.right_controller.calculate(position=right_dist)
 
         angle = self.controller.calculate(position=left_dist-right_dist)
 
-        # if front_dist < 100:
-        #     speed -= 0.05
-
-        # return (speed - 0.01 + abs(angle) / 20, angle)
         return (FOLLOWING_SPEED, angle)
 
     def next_state(self, data: RobotData) -> Any:

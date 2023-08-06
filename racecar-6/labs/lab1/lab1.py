@@ -68,17 +68,17 @@ def update():
         queue.append([5.5,1,1])
 
 
-if rc.controller.was_pressed(rc.controller.Button.Y):
-    print("Driving in a star...")
-    for _ in range(5):
-        queue.append([2,1,0])
-        queue.append([2.5,1,1])
+    if rc.controller.was_pressed(rc.controller.Button.Y):
+        print("Driving in a star...")
+        for _ in range(5):
+            queue.append([2,1,0])
+            queue.append([2.5,1,1])
 
-    if rc.controller.was_pressed(rc.controller.Button.B):
-        print("Driving in a square...")
-        for _ in range(4):
-            queue.append([2,0.5,0])
-            queue.append([0.5,0.5,1])
+        if rc.controller.was_pressed(rc.controller.Button.B):
+            print("Driving in a square...")
+            for _ in range(4):
+                queue.append([2,0.5,0])
+                queue.append([0.5,0.5,1])
 
     if len(queue) != 0:
         queue[0][0] -= rc.get_delta_time()
