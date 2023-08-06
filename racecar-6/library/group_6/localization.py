@@ -17,7 +17,8 @@ Keywords: Feature extraction; Robot mapping
 import time
 import math
 
-from typing import Tuple
+from typing import Tuple, List
+from collections import namedtuple
 
 import numpy as np
 from nptyping import NDArray
@@ -25,6 +26,10 @@ from nptyping import NDArray
 K_1 = np.array((-3, -3, 5, -3, -3))
 K_2 = np.array((-1, -2, -3, 5, -3, -2, -1))
 
+Line = namedtuple("Line", ["point_1", "point_2"])
+
+class ParticleFilter:
+    pass
 
 class IMUOdometry:
     """
@@ -70,24 +75,27 @@ def dist(p_1: Tuple[float, float], p_2: Tuple[float, float]):
     """
     Distance between two cartiesian points
     """
-
     return math.sqrt((p_1[0] - p_2[0]) ** 2 + (p_1[1] - p_2[1]) ** 2)
 
-def to_cartesian(polar: Tuple[float, float]):
+def dist_from_line(point: Tuple[float, float], line: Line) -> float:
+    """
+    Length of a perpendicular bisector to the line that intersects with the point
+    """
+    return np.linalg.norm(np.cross(line[1] - line[0], line[0] - point)) / np.linalg.norm(line[1] - line[0])
+
+def polar_to_cartesian(polar: Tuple[float, float]) -> Tuple[float, float]:
     """
     Converts polar coordinates to cartesian
     """
-
     return (polar[0] * math.cos(polar[1]), polar[0] * math.sin(polar[1]))
 
 def lidar_to_rad(index: int) -> float:
     """
-    Converts imu index value (1/2 deg) to radians
+    Converts lidar index value (1/2 deg) to radians
     """
-
     return index / 2.0 * math.pi / 180.0
 
-def dcc(scan_points: NDArray, kernel: NDArray = K_1, deviations: float = 5) -> list[list[tuple[float, float]]]:
+def dcc(scan_points: NDArray, kernel: NDArray = K_1, deviations: float = 5) -> List[NDArray]:
     """
     Performs Distance-based Convolution Clustering on a set of scan points
     See: https://www.sciencedirect.com/science/article/abs/pii/S0921889009001900
@@ -95,7 +103,14 @@ def dcc(scan_points: NDArray, kernel: NDArray = K_1, deviations: float = 5) -> l
 
     assert len(kernel) % 2 == 1
 
-    distances = [dist(to_cartesian((lidar_to_rad(i), scan_points[i])), to_cartesian((lidar_to_rad(i), scan_points[i+1]))) for i in range(len(scan_points) - 1)]
+    def lidar_to_cartesian(index: int) -> Tuple[float, float]:
+        """
+        Utility to convert lidar values into cartesian points
+        """
+        return polar_to_cartesian((scan_points[index], lidar_to_rad(index)))
+
+    # this could be vectorized
+    distances = np.array([dist(lidar_to_cartesian(i), lidar_to_cartesian(i+1)) for i in range(len(scan_points) - 1)])
 
     # calculate stdev
     sigma = np.std(distances)
@@ -103,7 +118,7 @@ def dcc(scan_points: NDArray, kernel: NDArray = K_1, deviations: float = 5) -> l
     # half the kernel
     half_kernel = len(kernel) // 2
 
-    clusters: list[list[tuple[float, float]]] = []
+    clusters: List[NDArray] = []
 
     # convolution
     # consider using vectorized np.convolve and checking for clusters after
@@ -114,19 +129,50 @@ def dcc(scan_points: NDArray, kernel: NDArray = K_1, deviations: float = 5) -> l
             if 0 <= i+j and i+j < len(distances):
                 integral += distances[i+j] * kernel[j+half_kernel]
         if integral > deviations * sigma: # typo in the paper for d = 5, meant b
-            clusters.append([to_cartesian((r, dist)) for r, dist in enumerate(scan_points[last:i])])
-            last = i
-    clusters.append(scan_points[last:])
+            clusters.append(np.array([lidar_to_cartesian(theta) for theta in range(last, i)])) # type: ignore
+            last = i+1
+    clusters.append(np.array([lidar_to_cartesian(theta) for theta in range (last, len(scan_points))])) # type: ignore
 
     return clusters
 
 
-def reholt(scan_points: NDArray):
-    # actually who named this
-    base = 1
+def rht(scan_points: NDArray):
+    """
+    Performs Reduced Hough Transform (REHOLT) on a cluster of points to identify lines
+    scan_points: ndarray of cartesian data points
+    """
 
-    j = 1
+    D1 = None
+    D2 = None
+
+    base = 0
+    j = base
+
     d = 0
-    while d >= d1:
+    while True:
         j += 1
         d = dist(scan_points[base], scan_points[j])
+        if d >= D1:
+            break
+
+    R = Line(scan_points[base], scan_points[j])
+    k = j
+
+    while k < len(scan_points):
+        d = dist_from_line(scan_points[k+1], R)
+        if d > D2:
+            new_line = rht(scan_points[base:k])
+            # p_b = closest_point_from_line(scan_points[k], new_line) <- unclear why this is done
+        else:
+            k += 1
+
+    return R
+
+
+def pht(scan_points: NDArray):
+    """
+    Performs a Probabilistic Hough Transform
+    https://homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/AV1011/macdonald.pdf
+    """
+
+    pass

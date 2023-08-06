@@ -3,8 +3,25 @@ Group 6's library of control code includes utilities we use in controlling our r
 """
 
 import time
-from typing import Optional
+from typing import Optional, NamedTuple
 
+class PIDConstants(NamedTuple):
+    """
+    PID Constants
+    """
+
+    k_p: float
+    k_i: float
+    k_d: float
+
+    def __repr__(self) -> str:
+        return f"PIDConstants(k_d={self.k_d}, k_i={self.k_i}, k_d={self.k_d})"
+
+    def __mul__(self, __value):
+        return PIDConstants(__value * self.k_p, __value * self.k_i, __value * self.k_d) # type: ignore
+
+    def __rmul__(self, __value):
+        return self.__mul__(__value)
 
 class PIDController:
     """
@@ -13,16 +30,12 @@ class PIDController:
 
     def __init__(
         self,
-        k_p: float,
-        k_i: float,
-        k_d: float,
+        constants: PIDConstants,
         setpoint: float = 0,
         min_output: Optional[float] = None,
         max_output: Optional[float] = None
     ) -> None:
-        self.k_p = k_p
-        self.k_i = k_i
-        self.k_d = k_d
+        self.constants = constants
 
         self.prev_time = time.perf_counter()
         self.prev_error = 0
@@ -55,7 +68,7 @@ class PIDController:
 
         self.prev_error = error
 
-        control_effort = self.k_p * error + self.k_i * self.sum + self.k_d * derivative
+        control_effort = self.constants.k_p * error + self.constants.k_i * self.sum + self.constants.k_d * derivative
 
         if self.min_output:
             control_effort = max(control_effort, self.min_output)
@@ -66,7 +79,7 @@ class PIDController:
         return control_effort
 
     def __repr__(self) -> str:
-        return f"PID: k_p: {self.k_p}, k_i: {self.k_i}, k_d: {self.k_d}, setpoint: {self.setpoint}, error: {self.prev_error}, integral: {self.sum}"
+        return f"PID: constants: {self.constants}, setpoint: {self.setpoint}, error: {self.prev_error}, integral: {self.sum}"
 
 
 class RateLimiter:

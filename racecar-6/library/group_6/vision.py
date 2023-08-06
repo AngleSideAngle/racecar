@@ -14,25 +14,11 @@ from nptyping import NDArray
 
 DEFAULT_MIN_CONTOUR_AREA = 500
 
-class Color(Enum):
-    """
-    Represents a range of colors that the robot can contour,
-    with each variable containing a min and max HSV.
-    """
-
-    # Line colors
-    YELLOW = ((40-20, 90, 150), (30+20, 255, 255))
-    # BLUE = ((90, 110, 110), (120, 255, 255))
-    BLUE = ((91-20, 120-45, 206-30), (91+20, 255, 255))
-    GREEN = ((30, 160, 150), (60+30, 255, 255+40))
-
-    # Cone colors
-    ORANGE = ((0, 125, 200), (16, 255, 255))
-    PURPLE = ((100, 90, 70), (160, 255, 255))
-    # Both
-    RED = ((150-20, 85-45, 190-30), (179, 255, 255))
-    #BLUE = ((90, 110, 110), (120, 255, 255))
-
+Color = Tuple[Tuple[int, int, int], Tuple[int, int, int]]
+"""
+Alias for a range of colors that the robot can contour,
+with each variable containing a min and max HSV.
+"""
 
 class ContourData(NamedTuple):
     """
@@ -43,6 +29,9 @@ class ContourData(NamedTuple):
     center: Tuple[float, float]
     area: float
     bounds: Tuple[float, float]
+
+    def __repr__(self) -> str:
+        return f"ContourData(color={self.color},\ncenter={self.center},\narea={self.area},\nbounds={self.bounds})"
 
 def get_contour(
     image: NDArray,
@@ -66,7 +55,7 @@ def get_contour(
     color = None
 
     for col in color_priority:
-        contours = rc_utils.find_contours(image, col.value[0], col.value[1])
+        contours = rc_utils.find_contours(image, col[0], col[1])
         contour = rc_utils.get_largest_contour(contours, min_contour_area)
         color = col
         if contour is not None:
