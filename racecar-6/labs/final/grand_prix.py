@@ -23,9 +23,7 @@ from group_6.vision import *
 from group_6.localization import *
 from group_6.utils import *
 from constants import *
-from cone_slalom import ConeSlalom
-from line_following import LineFollowing, LaneFollowing
-from wall_following import SideWallFollowing, CenterWallFollowing
+from states import CenterWallFollowing, SideWallFollowing
 
 
 ########################################################################################
@@ -61,7 +59,8 @@ def start():
     # Print start message
     print(">> Final Challenge - Grand Prix")
 
-    current_state = CenterWallFollowing() # LineFollowing((BLUE, GREEN, RED))
+    current_state = CenterWallFollowing(FOLLOWING_SPEED+0.02) # LineFollowing((BLUE, GREEN, RED))
+    # current_state = SideWallFollowing(right_wall=False, offset=60)
 
 
 def update():
@@ -89,6 +88,10 @@ def update():
 
     speed, angle = current_state.execute(current_data)
     speed = speed_limiter.update(speed) # + WEIGHT_COMPENSATION * math.sin(odometry.angular_position[1])
+    speed *= (1 + abs(angle) / 10)
+
+    speed = clamp(speed, -1, 1)
+    angle = clamp(angle, -1, 1)
 
     rc.drive.set_speed_angle(speed, angle)
 
